@@ -1,0 +1,143 @@
+name: Deploy Skills
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'skills/**'
+  workflow_dispatch:
+    inputs:
+      skill_name:
+        description: 'Specific skill to deploy (leave empty for changed skills only)'
+        required: false
+        type: string
+      deploy_all:
+        description: 'Deploy all skills'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Determine skills to deploy
+        id: determine-skills
+        run: |
+          skills=""
+
+          # If specific skill requested via workflow_dispatch
+          if [ -n "${{ inputs.skill_name }}" ]; then
+            if [ -d "skills/${{ inputs.skill_name }}" ]; then
+              skills="skills/${{ inputs.skill_name }}"
+            else
+              echo "Error: Skill not found: ${{ inputs.skill_name }}"
+              exit 1
+            fi
+          # If deploy_all requested
+          elif [ "${{ inputs.deploy_all }}" = "true" ]; then
+            skills=$(find skills -mindepth 1 -maxdepth 1 -type d | tr '\n' ' ')
+          # Otherwise, detect changed skills
+          else
+            # Get changed files
+            if [ "${{ github.event_name }}" = "push" ]; then
+              changed=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- 'skills/' || echo "")
+            else
+              changed=$(git diff --name-only HEAD~1 HEAD -- 'skills/' || echo "")
+            fi
+
+            # Extract unique skill directories
+            if [ -n "$changed" ]; then
+              skills=$(echo "$changed" | grep -oE '^skills/[^/]+' | sort -u | tr '\n' ' ')
+            fi
+          fi
+
+          echo "skills=$skills" >> $GITHUB_OUTPUT
+          echo "Skills to deploy: $skills"
+
+      - name: Validate skills
+        if: steps.determine-skills.outputs.skills != ''
+        run: |
+          for skill_dir in ${{ steps.determine-skills.outputs.skills }}; do
+            if [ -f "$skill_dir/SKILL.md" ]; then
+              echo "Validating: $skill_dir"
+              python scripts/quick_validate.py "$skill_dir"
+            fi
+          done
+
+      - name: Package skills
+        if: steps.determine-skills.outputs.skills != ''
+        run: |
+          mkdir -p dist
+          for skill_dir in ${{ steps.determine-skills.outputs.skills }}; do
+            if [ -f "$skill_dir/SKILL.md" ]; then
+              echo "Packaging: $skill_dir"
+              python scripts/package_skill.py "$skill_dir"
+            fi
+          done
+
+      - name: Upload skills to Anthropic API
+        if: steps.determine-skills.outputs.skills != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          for skill_dir in ${{ steps.determine-skills.outputs.skills }}; do
+            if [ -f "$skill_dir/SKILL.md" ]; then
+              echo "Uploading: $skill_dir"
+              python scripts/upload_skill.py "$skill_dir"
+            fi
+          done
+
+      - name: Upload artifacts
+        if: steps.determine-skills.outputs.skills != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-skills
+          path: dist/*.skill
+          retention-days: 30
+
+  release:
+    needs: deploy
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Package all skills
+        run: |
+          mkdir -p dist
+          for skill_dir in skills/*/; do
+            if [ -f "$skill_dir/SKILL.md" ]; then
+              echo "Packaging: $skill_dir"
+              python scripts/package_skill.py "$skill_dir"
+            fi
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*.skill
+          generate_release_notes: true
