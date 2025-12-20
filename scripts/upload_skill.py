@@ -120,7 +120,7 @@ def upload_skill(skill_path: Path, api_key: str = None) -> dict:
     # Create multipart body
     body, content_type = create_multipart_body(
         fields={"display_title": display_title},
-        files={"files": (f"{skill_path.name}.zip", package_content)}
+        files={"files[]": (f"{skill_path.name}.zip", package_content)}
     )
 
     # Upload
