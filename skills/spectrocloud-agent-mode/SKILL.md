@@ -56,14 +56,76 @@ export TOKEN=<your-registration-token>
 ```
 
 ### Step 3: Create user-data
+
+**Minimal configuration** (required fields only):
+```yaml
+#cloud-config
+install:
+  reboot: true
+stylus:
+  site:
+    edgeHostToken: <registration-token>
+    paletteEndpoint: api.spectrocloud.com
+    projectName: <project-name>
+```
+
+**Before proceeding, ask if the user needs any advanced configurations:**
+- Custom edge host name (`stylus.site.name`)
+- Static IP / network configuration
+- Custom partition sizes
+- Proxy settings
+- Custom CA certificates
+- Tags/labels for the edge host
+
+**Advanced configuration example:**
+```yaml
+#cloud-config
+install:
+  reboot: true
+  partitions:
+    oem:
+      size: 5120      # MB
+      fs: ext4
+    system:
+      size: 8192
+    recovery-system:
+      size: 10000
+    passive:
+      size: 8192
+
+stylus:
+  site:
+    edgeHostToken: <registration-token>
+    paletteEndpoint: api.spectrocloud.com
+    projectName: <project-name>
+    name: custom-edge-host-name        # Optional: custom name instead of auto-generated
+    network:
+      httpProxy: http://proxy:8080
+      httpsProxy: http://proxy:8080
+      noProxy: localhost,127.0.0.1,.local
+    caCerts:
+      - |
+        -----BEGIN CERTIFICATE-----
+        <CA cert content>
+        -----END CERTIFICATE-----
+    tags:
+      environment: production
+      location: datacenter-1
+  installationMode: connected          # connected or airgap
+  managementMode: central              # central or local
+```
+
+Create the user-data file:
 ```bash
 cat << EOF > user-data
 #cloud-config
+install:
+  reboot: true
 stylus:
   site:
     edgeHostToken: $TOKEN
     paletteEndpoint: api.spectrocloud.com
-    projectName: Default
+    projectName: <project-name>
 EOF
 ```
 
