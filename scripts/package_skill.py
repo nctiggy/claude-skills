@@ -36,7 +36,7 @@ def package_skill(skill_path: Path, output_dir: Path = None, validate: bool = Tr
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{skill_name}.skill"
 
-    # Create zip file
+    # Create zip file with top-level folder (API requirement)
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(skill_path):
             # Skip hidden directories and __pycache__
@@ -48,7 +48,8 @@ def package_skill(skill_path: Path, output_dir: Path = None, validate: bool = Tr
                     continue
 
                 file_path = Path(root) / file
-                arcname = file_path.relative_to(skill_path)
+                # Include skill folder name as top-level directory in zip
+                arcname = Path(skill_name) / file_path.relative_to(skill_path)
                 zf.write(file_path, arcname)
 
     return output_path
