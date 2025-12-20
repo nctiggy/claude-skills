@@ -34,3 +34,7 @@ Thumbs.db
 
 # Local Claude config (for project-specific syncs)
 .claude/
+
+# Personal/local skills (not published)
+skills/craigs-homelab/
+skills/*-local/
