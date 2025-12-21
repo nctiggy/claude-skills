@@ -115,7 +115,7 @@ def find_skill_by_title(display_title: str, api_key: str) -> str | None:
 def upload_skill(skill_path: Path, api_key: str = None, force: bool = False) -> dict:
     """Package and upload a skill to the Anthropic API.
 
-    If force=True, deletes existing skill with same title before uploading.
+    If force=True and skill already exists, returns existing skill info instead of failing.
     """
     if api_key is None:
         api_key = get_api_key()
@@ -128,16 +128,6 @@ def upload_skill(skill_path: Path, api_key: str = None, force: bool = False) -> 
 
     # Get display title
     display_title = extract_title_from_skill(skill_path)
-
-    # If force mode, delete existing skill with same title
-    if force:
-        existing_id = find_skill_by_title(display_title, api_key)
-        if existing_id:
-            print(f"Deleting existing skill '{display_title}' (ID: {existing_id})...")
-            try:
-                delete_skill(existing_id, api_key)
-            except ValueError as e:
-                print(f"Warning: Could not delete existing skill: {e}")
 
     # Read package content
     with open(package_path, "rb") as f:
@@ -164,6 +154,15 @@ def upload_skill(skill_path: Path, api_key: str = None, force: bool = False) -> 
         error_body = e.read().decode()
         try:
             error_json = json.loads(error_body)
+            error_msg = error_json.get("error", {}).get("message", "")
+
+            # If skill already exists and force mode, return existing skill info
+            if force and "existing display_title" in error_msg:
+                existing_id = find_skill_by_title(display_title, api_key)
+                if existing_id:
+                    print(f"Skill already exists (ID: {existing_id}), skipping upload.")
+                    return {"id": existing_id, "display_title": display_title, "status": "already_exists"}
+
             raise ValueError(f"API error ({e.code}): {json.dumps(error_json, indent=2)}")
         except json.JSONDecodeError:
             raise ValueError(f"API error ({e.code}): {error_body}")
