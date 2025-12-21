@@ -17,79 +17,12 @@ Cluster profiles define the software stack deployed on clusters.
 ## Before Creating Profiles
 
 **Ask the user:**
-1. What project name? (look up UID - see below)
+1. What project name? (use `spectrocloud-common` skill to look up UID)
 2. What cloud type? (edge-native, maas, eks, etc.)
 3. Profile type? (cluster or add-on)
-4. What packs? (If unsure, help discover packs)
+4. What packs? (use `spectrocloud-common` skill to discover packs)
 
----
-
-## Project Lookup
-
-API calls require a Project UID. Ask for the project **name**, then look it up:
-
-```bash
-# List all projects and find by name
-curl -s "https://api.spectrocloud.com/v1/projects" \
-  -H "ApiKey: $PALETTE_API_KEY" | \
-  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid}]'
-```
-
-**If name isn't an exact match**, search case-insensitively:
-```bash
-# Find project containing keyword
-PROJECT_NAME="demo"
-curl -s "https://api.spectrocloud.com/v1/projects" \
-  -H "ApiKey: $PALETTE_API_KEY" | \
-  jq --arg name "$PROJECT_NAME" '[.items[] |
-    select(.metadata.name | ascii_downcase | contains($name | ascii_downcase)) |
-    {name: .metadata.name, uid: .metadata.uid}]'
-```
-
-**If multiple matches**, present options to user and confirm before proceeding.
-
----
-
-## Pack Discovery
-
-**Ask user for the pack name.** If unknown, suggest browsing Palette UI or searching below.
-
-### Find Pack by Exact Name
-```bash
-curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=hello-universe&limit=50" \
-  -H "ApiKey: $PALETTE_API_KEY" \
-  -H "ProjectUid: $PROJECT_UID" | \
-  jq '[.items[] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid,
-      registryUid: .spec.registryUid, layer: .spec.layer}] | sort_by(.version) | reverse'
-```
-
-### Get Pack Default Values (Required!)
-```bash
-# Packs have required parameters - ALWAYS fetch defaults before creating profiles
-curl -s "https://api.spectrocloud.com/v1/packs/$PACK_UID?includePackValues=true" \
-  -H "ApiKey: $PALETTE_API_KEY" \
-  -H "ProjectUid: $PROJECT_UID" | jq -r '.packValues[0].values'
-```
-
-### Search Packs by Keyword
-```bash
-KEYWORD="hello"
-curl -s "https://api.spectrocloud.com/v1/packs?filters=spec.layer=addon&limit=100" \
-  -H "ApiKey: $PALETTE_API_KEY" \
-  -H "ProjectUid: $PROJECT_UID" | \
-  jq --arg kw "$KEYWORD" '[.items[] | select(.metadata.name | ascii_downcase | contains($kw | ascii_downcase)) |
-      {name: .metadata.name, version: .spec.version}] | unique_by(.name)'
-```
-
-### Registry Types
-
-| Registry Type | Example Name | Notes |
-|---------------|--------------|-------|
-| Pack | "Public Repo" | Standard packs (metallb, etc.) |
-| Helm | "Bitnami" | Helm charts indexed as packs |
-| OCI | (various) | Some packs use OCI registries |
-
-**Important**: If a pack isn't found with a specific registry, omit `registry_uid` to let Terraform auto-discover.
+**Important**: Use the `spectrocloud-common` skill for project lookup, pack discovery, and fetching pack default values.
 
 ---
 
@@ -435,22 +368,12 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
 
 ## Recommended Workflow
 
-1. Look up project UID by name
-2. Search for packs using `filters=metadata.name=<pack-name>`
-3. **Fetch pack default values** using `?includePackValues=true`
-4. Create Terraform with data sources and full values
-5. Run `terraform plan` first to catch validation errors
+1. Use `spectrocloud-common` skill to look up project UID
+2. Use `spectrocloud-common` skill to find packs and fetch default values
+3. Create profile via API or Terraform with full values
+4. Run `terraform plan` first to catch validation errors
 
----
-
-## Common Gotchas
-
-| Issue | Solution |
-|-------|----------|
-| "no matching packs" | Omit `registry_uid` to auto-discover |
-| "pack not found with tag X" | Check versions via API, not source repo |
-| "Parameter X value is required" | Fetch and include pack default values |
-| Pack in wrong registry | Some packs exist in multiple registries |
+See `spectrocloud-common` skill for troubleshooting common pack/registry issues.
 
 ---
 
