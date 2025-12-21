@@ -26,17 +26,30 @@ Cluster profiles define the software stack deployed on clusters.
 
 ## Pack Discovery
 
-### Get Pack UID and Registry UID (Required for API)
+**Ask user for the pack name.** If unknown, suggest browsing Palette UI or searching below.
+
+### Find Pack by Exact Name (Recommended)
 ```bash
-# Find pack by name and version - need uid and registryUid for profile creation
-curl -s "https://api.spectrocloud.com/v1/packs?filters=spec.layer=os&limit=50" \
+# Get all versions of a pack by exact name - returns uid and registryUid needed for profiles
+curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=hello-universe&limit=50" \
   -H "ApiKey: $PALETTE_API_KEY" \
   -H "ProjectUid: $PROJECT_UID" | \
-  jq '.items[] | select(.metadata.name=="edge-native-byoi" and .spec.version=="2.0.0") |
-      {name: .metadata.name, uid: .metadata.uid, registryUid: .spec.registryUid, version: .spec.version}'
+  jq '[.items[] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid,
+      registryUid: .spec.registryUid, layer: .spec.layer}] | sort_by(.version) | reverse'
 ```
 
-### Edge-Native Packs
+### Search Packs by Keyword (When Exact Name Unknown)
+```bash
+# Search addon packs containing a keyword - fetches 100 at a time, greps locally
+KEYWORD="hello"
+curl -s "https://api.spectrocloud.com/v1/packs?filters=spec.layer=addon&limit=100" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" | \
+  jq --arg kw "$KEYWORD" '[.items[] | select(.metadata.name | ascii_downcase | contains($kw | ascii_downcase)) |
+      {name: .metadata.name, version: .spec.version, displayName: .spec.displayName}] | unique_by(.name)'
+```
+
+### Common Edge-Native Packs
 
 | Layer | Pack Name | Notes |
 |-------|-----------|-------|
@@ -45,6 +58,7 @@ curl -s "https://api.spectrocloud.com/v1/packs?filters=spec.layer=os&limit=50" \
 | k8s | `edge-k8s` | Kubeadm |
 | cni | `cni-calico` | Calico |
 | cni | `cni-cilium-oss` | Cilium |
+| addon | `hello-universe` | Demo app |
 
 ---
 
