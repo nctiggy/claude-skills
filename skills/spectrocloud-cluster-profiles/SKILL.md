@@ -54,9 +54,8 @@ curl -s "https://api.spectrocloud.com/v1/projects" \
 
 **Ask user for the pack name.** If unknown, suggest browsing Palette UI or searching below.
 
-### Find Pack by Exact Name (Recommended)
+### Find Pack by Exact Name
 ```bash
-# Get all versions of a pack by exact name - returns uid and registryUid needed for profiles
 curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=hello-universe&limit=50" \
   -H "ApiKey: $PALETTE_API_KEY" \
   -H "ProjectUid: $PROJECT_UID" | \
@@ -64,27 +63,33 @@ curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=hello-unive
       registryUid: .spec.registryUid, layer: .spec.layer}] | sort_by(.version) | reverse'
 ```
 
-### Search Packs by Keyword (When Exact Name Unknown)
+### Get Pack Default Values (Required!)
 ```bash
-# Search addon packs containing a keyword - fetches 100 at a time, greps locally
+# Packs have required parameters - ALWAYS fetch defaults before creating profiles
+curl -s "https://api.spectrocloud.com/v1/packs/$PACK_UID?includePackValues=true" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" | jq -r '.packValues[0].values'
+```
+
+### Search Packs by Keyword
+```bash
 KEYWORD="hello"
 curl -s "https://api.spectrocloud.com/v1/packs?filters=spec.layer=addon&limit=100" \
   -H "ApiKey: $PALETTE_API_KEY" \
   -H "ProjectUid: $PROJECT_UID" | \
   jq --arg kw "$KEYWORD" '[.items[] | select(.metadata.name | ascii_downcase | contains($kw | ascii_downcase)) |
-      {name: .metadata.name, version: .spec.version, displayName: .spec.displayName}] | unique_by(.name)'
+      {name: .metadata.name, version: .spec.version}] | unique_by(.name)'
 ```
 
-### Common Edge-Native Packs
+### Registry Types
 
-| Layer | Pack Name | Notes |
-|-------|-----------|-------|
-| os | `edge-native-byoi` | Agent or appliance mode |
-| k8s | `edge-k3s` | K3s (required for 2-node) |
-| k8s | `edge-k8s` | Kubeadm |
-| cni | `cni-calico` | Calico |
-| cni | `cni-cilium-oss` | Cilium |
-| addon | `hello-universe` | Demo app |
+| Registry Type | Example Name | Notes |
+|---------------|--------------|-------|
+| Pack | "Public Repo" | Standard packs (metallb, etc.) |
+| Helm | "Bitnami" | Helm charts indexed as packs |
+| OCI | (various) | Some packs use OCI registries |
+
+**Important**: If a pack isn't found with a specific registry, omit `registry_uid` to let Terraform auto-discover.
 
 ---
 
@@ -325,7 +330,22 @@ resource "spectrocloud_cluster_profile" "addon" {
 ```
 
 ### Terraform: Helm Pack
+
+**Helm charts are indexed as packs** - use `data "spectrocloud_pack"`, not direct registry references.
+Version numbers in Palette differ from source repos (e.g., harbor `16.3.3` not `24.0.3`).
+
 ```hcl
+# Look up helm chart as a pack
+data "spectrocloud_pack" "harbor" {
+  name         = "harbor"
+  version      = "16.3.3"  # Palette's indexed version
+  registry_uid = data.spectrocloud_registry.bitnami.id
+}
+
+data "spectrocloud_registry" "bitnami" {
+  name = "Bitnami"
+}
+
 resource "spectrocloud_cluster_profile" "helm-addon" {
   name    = "helm-example"
   type    = "add-on"
@@ -333,18 +353,28 @@ resource "spectrocloud_cluster_profile" "helm-addon" {
   version = "1.0.0"
 
   pack {
-    name         = "nginx"
-    type         = "helm"
+    name         = data.spectrocloud_pack.harbor.name
+    tag          = data.spectrocloud_pack.harbor.version
+    uid          = data.spectrocloud_pack.harbor.id
     registry_uid = data.spectrocloud_registry.bitnami.id
-    tag          = "15.0.0"
+    type         = "helm"
     values       = <<-EOT
-      replicaCount: 2
+      pack:
+        namespace: harbor  # Required!
     EOT
   }
 }
+```
 
-data "spectrocloud_registry" "bitnami" {
-  name = "Bitnami"
+### Terraform: Pack with Auto-Discovery
+
+If a pack isn't found with a specific registry, **omit `registry_uid`**:
+
+```hcl
+# Provider auto-discovers the correct registry
+data "spectrocloud_pack" "hello_universe" {
+  name    = "hello-universe"
+  version = "1.2.0"
 }
 ```
 
@@ -403,6 +433,27 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
 
 ---
 
+## Recommended Workflow
+
+1. Look up project UID by name
+2. Search for packs using `filters=metadata.name=<pack-name>`
+3. **Fetch pack default values** using `?includePackValues=true`
+4. Create Terraform with data sources and full values
+5. Run `terraform plan` first to catch validation errors
+
+---
+
+## Common Gotchas
+
+| Issue | Solution |
+|-------|----------|
+| "no matching packs" | Omit `registry_uid` to auto-discover |
+| "pack not found with tag X" | Check versions via API, not source repo |
+| "Parameter X value is required" | Fetch and include pack default values |
+| Pack in wrong registry | Some packs exist in multiple registries |
+
+---
+
 ## Quick Reference
 
 | Item | Value |
@@ -410,9 +461,8 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
 | Create & Publish | `POST /v1/clusterprofiles?publish=true` |
 | Read | `GET /v1/clusterprofiles/{uid}` |
 | Delete | `DELETE /v1/clusterprofiles/{uid}` |
+| Get Pack Values | `GET /v1/packs/{uid}?includePackValues=true` |
 | Required Headers | `ApiKey`, `ProjectUid`, `Content-Type` |
-| Pack Fields | `name`, `layer`, `tag`, `uid`, `registryUid`, `type`, `values` |
-| Profile Types | `cluster` (infra), `add-on` |
 
 ## Links
 
