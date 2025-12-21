@@ -1,0 +1,50 @@
+# Claude Skills Repository
+
+## Workflow
+
+### Publishing Skills
+**DO NOT manually upload skills or create artifacts.** The GitHub Actions pipeline handles everything:
+
+1. Make changes to skills in `skills/<skill-name>/SKILL.md`
+2. Commit and push to `main`
+3. GitHub Actions will:
+   - Validate skills
+   - Package them as `.skill` files
+   - Upload to Anthropic API
+   - Create downloadable artifacts
+
+### Getting Artifacts
+After pushing:
+1. Go to GitHub Actions for this repo
+2. Find the latest successful workflow run
+3. Download artifacts from the workflow run page
+
+### Syncing to Claude Code CLI
+After downloading artifacts:
+```bash
+make sync  # Symlinks skills to ~/.claude/skills/
+```
+
+Or manually:
+```bash
+ln -sf $(pwd)/skills/* ~/.claude/skills/
+```
+
+## Skills Structure
+
+Each skill is a directory in `skills/` containing:
+- `SKILL.md` - The skill definition with frontmatter (name, description)
+
+## Testing Skills
+
+### SpectroCloud Edge Testing
+- Use `subtle-bug.maas` as build machine for CanvOS builds
+- Proxmox at 172.18.0.4:8006 for VM testing
+- Credentials in 1Password (k8s vault)
+
+### Cleanup Checklist
+When testing edge deployments, remember to clean up:
+1. Edge hosts from Palette (Clusters → Edge Hosts → Delete)
+2. VMs from Proxmox
+3. ISOs from Proxmox storage
+4. Nodes from MaaS (if registered)
