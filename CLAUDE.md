@@ -42,6 +42,15 @@
 Each skill is a directory in `skills/` containing:
 - `SKILL.md` - The skill definition with frontmatter (name, description)
 
+### Content Guidelines
+**Keep skills generic and shareable.** Do NOT include:
+- Personal infrastructure (IP addresses, hostnames like `subtle-bug.maas`)
+- Secret store references (1Password vaults, specific credential paths)
+- MCP server names specific to your environment
+- Any environment-specific configuration
+
+Use placeholder values like `<your-api-key>`, `$PROJECT_UID`, or generic examples instead.
+
 ## Testing Skills
 
 ### SpectroCloud Edge Testing
