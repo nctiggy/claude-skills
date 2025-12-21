@@ -54,13 +54,19 @@ curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=hello-unive
       registryUid: .spec.registryUid, layer: .spec.layer}] | sort_by(.version) | reverse'
 ```
 
-### Get Pack Default Values (Required!)
+### Get Pack Default Values (Critical!)
 ```bash
-# Packs have required parameters - ALWAYS fetch defaults before creating profiles
+# Fetch the COMPLETE default values for a pack
 curl -s "https://api.spectrocloud.com/v1/packs/$PACK_UID?includePackValues=true" \
   -H "ApiKey: $PALETTE_API_KEY" \
   -H "ProjectUid: $PROJECT_UID" | jq -r '.packValues[0].values'
 ```
+
+**Important workflow for pack values:**
+1. **Fetch the entire default values file** - don't summarize or truncate
+2. **Keep ALL default values intact** - include the complete file in your profile
+3. **Only modify specific sections** you need to change
+4. Never strip out sections - missing values cause validation failures
 
 ### Search Packs by Keyword
 ```bash

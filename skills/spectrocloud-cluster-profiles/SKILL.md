@@ -22,7 +22,11 @@ Cluster profiles define the software stack deployed on clusters.
 3. Profile type? (cluster or add-on)
 4. What packs? (use `spectrocloud-common` skill to discover packs)
 
-**Important**: Use the `spectrocloud-common` skill for project lookup, pack discovery, and fetching pack default values.
+**Critical workflow for pack values:**
+1. Use `spectrocloud-common` skill to fetch **complete** default values for each pack
+2. **Keep the entire default values file** - do not summarize or truncate
+3. Only modify the specific sections that need customization
+4. Include the full values in the profile - missing values cause validation failures
 
 ---
 
