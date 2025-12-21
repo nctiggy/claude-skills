@@ -132,42 +132,8 @@ install:
 users:
   - name: kairos
     passwd: kairos
-    shell: /bin/bash
     groups: [sudo, admin]
     sudo: ALL=(ALL) NOPASSWD:ALL
-
-# Bridge networking (common for edge deployments)
-stages:
-  initramfs:
-    - name: "Setup bridge networking"
-      files:
-        - path: /etc/systemd/network/20-dhcp.network
-          content: |
-            [Match]
-            Name=en*
-            [Network]
-            Bridge=br0
-            LinkLocalAddressing=no
-          permissions: 0644
-          owner: 0
-          group: 0
-        - path: /etc/systemd/network/bridge0.netdev
-          content: |
-            [NetDev]
-            Name=br0
-            Kind=bridge
-          permissions: 0644
-          owner: 0
-          group: 0
-        - path: /etc/systemd/network/bridge0.network
-          content: |
-            [Match]
-            Name=br0
-            [Network]
-            DHCP=yes
-          permissions: 0644
-          owner: 0
-          group: 0
 
 stylus:
   site:
