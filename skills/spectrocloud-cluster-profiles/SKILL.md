@@ -17,10 +17,36 @@ Cluster profiles define the software stack deployed on clusters.
 ## Before Creating Profiles
 
 **Ask the user:**
-1. What project UID? (required for API calls)
+1. What project name? (look up UID - see below)
 2. What cloud type? (edge-native, maas, eks, etc.)
 3. Profile type? (cluster or add-on)
 4. What packs? (If unsure, help discover packs)
+
+---
+
+## Project Lookup
+
+API calls require a Project UID. Ask for the project **name**, then look it up:
+
+```bash
+# List all projects and find by name
+curl -s "https://api.spectrocloud.com/v1/projects" \
+  -H "ApiKey: $PALETTE_API_KEY" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid}]'
+```
+
+**If name isn't an exact match**, search case-insensitively:
+```bash
+# Find project containing keyword
+PROJECT_NAME="demo"
+curl -s "https://api.spectrocloud.com/v1/projects" \
+  -H "ApiKey: $PALETTE_API_KEY" | \
+  jq --arg name "$PROJECT_NAME" '[.items[] |
+    select(.metadata.name | ascii_downcase | contains($name | ascii_downcase)) |
+    {name: .metadata.name, uid: .metadata.uid}]'
+```
+
+**If multiple matches**, present options to user and confirm before proceeding.
 
 ---
 
