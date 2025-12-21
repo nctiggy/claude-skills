@@ -99,8 +99,24 @@ def create_multipart_body(fields: dict, files: dict) -> tuple[bytes, str]:
     return body, content_type
 
 
-def upload_skill(skill_path: Path, api_key: str = None) -> dict:
-    """Package and upload a skill to the Anthropic API."""
+def find_skill_by_title(display_title: str, api_key: str) -> str | None:
+    """Find a skill ID by its display title."""
+    try:
+        skills = list_skills(api_key)
+        for skill in skills:
+            title = skill.get("display_title", skill.get("name", ""))
+            if title == display_title:
+                return skill.get("id", skill.get("skill_id"))
+    except Exception:
+        pass
+    return None
+
+
+def upload_skill(skill_path: Path, api_key: str = None, force: bool = False) -> dict:
+    """Package and upload a skill to the Anthropic API.
+
+    If force=True, deletes existing skill with same title before uploading.
+    """
     if api_key is None:
         api_key = get_api_key()
 
@@ -112,6 +128,16 @@ def upload_skill(skill_path: Path, api_key: str = None) -> dict:
 
     # Get display title
     display_title = extract_title_from_skill(skill_path)
+
+    # If force mode, delete existing skill with same title
+    if force:
+        existing_id = find_skill_by_title(display_title, api_key)
+        if existing_id:
+            print(f"Deleting existing skill '{display_title}' (ID: {existing_id})...")
+            try:
+                delete_skill(existing_id, api_key)
+            except ValueError as e:
+                print(f"Warning: Could not delete existing skill: {e}")
 
     # Read package content
     with open(package_path, "rb") as f:
@@ -205,6 +231,11 @@ def main():
         action="store_true",
         help="Upload all skills in skills/ directory"
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Delete existing skill with same title before uploading"
+    )
 
     args = parser.parse_args()
 
@@ -261,7 +292,7 @@ def main():
 
     for path in paths:
         try:
-            result = upload_skill(path, api_key)
+            result = upload_skill(path, api_key, force=args.force)
             skill_id = result.get("id", result.get("skill_id", "unknown"))
             print(f"Success! Skill ID: {skill_id}")
             uploaded.append((path.name, skill_id))

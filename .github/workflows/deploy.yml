@@ -98,7 +98,7 @@ jobs:
           for skill_dir in ${{ steps.determine-skills.outputs.skills }}; do
             if [ -f "$skill_dir/SKILL.md" ]; then
               echo "Uploading: $skill_dir"
-              python scripts/upload_skill.py "$skill_dir"
+              python scripts/upload_skill.py --force "$skill_dir"
             fi
           done
 
