@@ -1,5 +1,21 @@
 # Claude Skills Repository
 
+## Instructions for Claude
+
+**After every `git push` to this repo, you MUST automatically:**
+1. Wait for GitHub Actions to complete: `gh run list --limit 1`
+2. Verify the run succeeded
+3. Run `make sync` to update local symlinks
+4. Download artifacts and copy to Desktop:
+   ```bash
+   gh run download <run-id> --dir /tmp/skill-artifacts
+   cp /tmp/skill-artifacts/packaged-skills/*.skill ~/Desktop/
+   ```
+
+Do not skip these steps or wait for the user to ask.
+
+---
+
 ## Workflow
 
 ### Publishing Skills
