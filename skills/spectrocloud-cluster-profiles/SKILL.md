@@ -22,11 +22,18 @@ Cluster profiles define the software stack deployed on clusters.
 3. Profile type? (cluster or add-on)
 4. What packs? (use `spectrocloud-common` skill to discover packs)
 
-**Critical workflow for pack values:**
-1. Use `spectrocloud-common` skill to fetch **complete** default values for each pack
-2. **Keep the entire default values file** - do not summarize or truncate
-3. Only modify the specific sections that need customization
-4. Include the full values in the profile - missing values cause validation failures
+**⚠️ CRITICAL - Pack Values:**
+
+Partial pack values WILL fail validation (e.g., `Parameter 'manifests.hello-universe.replicas' value is required`).
+
+1. **ALWAYS fetch complete default values** before creating profiles:
+   ```bash
+   curl -s "https://api.spectrocloud.com/v1/packs/{PACK_UID}?includePackValues=true" \
+     -H "ApiKey: $PALETTE_API_KEY" | jq -r '.packValues[0].values'
+   ```
+2. **Keep the ENTIRE default values file** - do not summarize or truncate
+3. Only modify specific sections you need to change
+4. Include full values in the profile - missing values cause validation failures
 
 ---
 
@@ -169,52 +176,47 @@ jq '[.items[] | select(.metadata.name == "edge-k3s")] |
 
 ---
 
-## Helper: Get All Pack UIDs for Edge Profile
-```bash
-# Run this to get pack UIDs needed for profile creation
-PROJECT_UID="your-project-uid"
-
-for pack in "edge-native-byoi:os:2.0.0" "edge-k3s:k8s:1.30.5" "cni-calico:cni:3.28.2"; do
-  IFS=':' read -r name layer version <<< "$pack"
-  echo "=== $name ==="
-  curl -s "https://api.spectrocloud.com/v1/packs?filters=spec.layer=$layer&limit=50" \
-    -H "ApiKey: $PALETTE_API_KEY" \
-    -H "ProjectUid: $PROJECT_UID" | \
-    jq -r ".items[] | select(.metadata.name==\"$name\" and .spec.version==\"$version\") |
-        \"uid: \" + .metadata.uid + \" registryUid: \" + .spec.registryUid"
-done
-```
-
----
-
 ## Manifests and Helm Charts
 
-### Pack Types
+### Pack Types - Registry Determines Type!
 
-| Type | API Value | Use Case |
-|------|-----------|----------|
-| Registry Pack | `spectro` | Infrastructure packs (OS, K8s, CNI) from Public Repo |
-| Helm Pack | `helm` | Helm charts (nginx, metallb-helm) - check pack metadata |
-| Manifest Pack | `manifest` | Inline Kubernetes YAML manifests |
-| OCI Pack | `oci` | Some packs use OCI registries |
+**Critical rule**: The pack type is determined by the **registry type**, not pack contents.
 
-**Determining type**: Check the pack's `spec.type` field via API. Common patterns:
-- `lb-metallb-helm` → type `helm`
-- `nginx` → type `helm`
-- `edge-k3s`, `cni-calico` → type `spectro`
+| Registry Type | Pack `type` Value |
+|---------------|-------------------|
+| Pack registry (Public Repo, etc.) | `spectro` |
+| Helm registry (Bitnami, custom) | `helm` |
+| Manifest (inline) | `manifest` |
+
+```hcl
+# WRONG - nginx is from pack registry, not helm registry
+pack {
+  name = "nginx"
+  type = "helm"  # Error: PackType 'helm' is not matching with registry type 'pack'
+}
+
+# CORRECT - pack registry = spectro type
+pack {
+  name = "nginx"
+  type = "spectro"
+}
+```
 
 ### Pack Naming
 
 Pack names aren't always obvious. Common mappings:
 
-| Common Name | Palette Pack Name |
-|-------------|-------------------|
-| metallb | `lb-metallb-helm` |
-| nginx-ingress | `nginx` |
-| calico | `cni-calico` |
-| cilium | `cni-cilium-oss` |
+| Search Term | Pack Name | Registry | Type |
+|-------------|-----------|----------|------|
+| metallb | `lb-metallb-helm` | Public Repo | `spectro` |
+| nginx | `nginx` | Public Repo | `spectro` |
+| nginx-ingress | `nginx` | Public Repo | `spectro` |
+| hello-universe | `hello-universe` | Palette Registry | `spectro` |
+| calico | `cni-calico` | Public Repo | `spectro` |
+| cilium | `cni-cilium-oss` | Public Repo | `spectro` |
+| harbor | `harbor` | Bitnami | `helm` |
 
-**Preferred registry**: Use "Public Repo" (`5eecc89d0b150045ae661cef`) when a pack exists in multiple registries.
+**Preferred registry**: Use "Public Repo" when a pack exists in multiple registries.
 
 ### Add Manifest Pack (Add-on Profile)
 ```bash
