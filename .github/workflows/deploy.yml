@@ -102,6 +102,19 @@ jobs:
             fi
           done
 
+      - name: Commit hash files
+        if: steps.determine-skills.outputs.skills != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add skills/*/.deployed_hash 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No hash files to commit"
+          else
+            git commit -m "Update deployed skill hashes [skip ci]"
+            git push
+          fi
+
       - name: Upload artifacts
         if: steps.determine-skills.outputs.skills != ''
         uses: actions/upload-artifact@v4

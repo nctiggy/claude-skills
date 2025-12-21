@@ -99,17 +99,97 @@ def create_multipart_body(fields: dict, files: dict) -> tuple[bytes, str]:
     return body, content_type
 
 
-def find_skill_by_title(display_title: str, api_key: str) -> str | None:
-    """Find a skill ID by its display title."""
+def find_skill_by_title(display_title: str, api_key: str) -> dict | None:
+    """Find a skill by its display title. Returns full skill info or None."""
     try:
         skills = list_skills(api_key)
         for skill in skills:
             title = skill.get("display_title", skill.get("name", ""))
             if title == display_title:
-                return skill.get("id", skill.get("skill_id"))
+                return skill
     except Exception:
         pass
     return None
+
+
+def get_skill_versions(skill_id: str, api_key: str) -> list:
+    """Get all versions of a skill."""
+    headers = get_headers(api_key)
+    url = f"{API_BASE}/{skill_id}/versions"
+    req = Request(url, headers=headers, method="GET")
+
+    try:
+        with urlopen(req) as response:
+            result = json.loads(response.read().decode())
+            return result.get("data", result)
+    except HTTPError:
+        return []
+
+
+def extract_version_from_skill(skill_path: Path) -> str | None:
+    """Extract version from skill SKILL.md frontmatter."""
+    skill_md = skill_path / "SKILL.md"
+    if not skill_md.exists():
+        return None
+
+    content = skill_md.read_text()
+    if not content.startswith("---"):
+        return None
+
+    parts = content.split("---", 2)
+    if len(parts) < 3:
+        return None
+
+    if yaml:
+        try:
+            frontmatter = yaml.safe_load(parts[1])
+            return frontmatter.get("version")
+        except Exception:
+            pass
+
+    return None
+
+
+def compute_skill_hash(skill_path: Path) -> str:
+    """Compute a hash of all skill files to detect changes."""
+    import hashlib
+
+    skill_path = Path(skill_path)
+    hasher = hashlib.sha256()
+
+    # Get all files, sorted for consistency
+    files = []
+    for root, dirs, filenames in os.walk(skill_path):
+        # Skip hidden directories and __pycache__
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d != '__pycache__']
+        for filename in filenames:
+            if filename.startswith('.') or filename.endswith('.pyc'):
+                continue
+            files.append(Path(root) / filename)
+
+    files.sort()
+
+    for file_path in files:
+        # Hash the relative path and contents
+        rel_path = file_path.relative_to(skill_path)
+        hasher.update(str(rel_path).encode())
+        hasher.update(file_path.read_bytes())
+
+    return hasher.hexdigest()[:16]  # Short hash for readability
+
+
+def get_deployed_hash(skill_path: Path) -> str | None:
+    """Get the last deployed content hash."""
+    hash_file = skill_path / ".deployed_hash"
+    if hash_file.exists():
+        return hash_file.read_text().strip()
+    return None
+
+
+def save_deployed_hash(skill_path: Path, content_hash: str):
+    """Save the deployed content hash."""
+    hash_file = skill_path / ".deployed_hash"
+    hash_file.write_text(content_hash + "\n")
 
 
 def create_skill_version(skill_id: str, skill_path: Path, api_key: str) -> dict:
@@ -188,6 +268,10 @@ def upload_skill(skill_path: Path, api_key: str = None, force: bool = False) -> 
     try:
         with urlopen(req) as response:
             result = json.loads(response.read().decode())
+            # Save content hash on successful initial upload
+            content_hash = compute_skill_hash(skill_path)
+            save_deployed_hash(skill_path, content_hash)
+            print(f"Saved content hash: {content_hash}")
             return result
     except HTTPError as e:
         error_body = e.read().decode()
@@ -195,14 +279,32 @@ def upload_skill(skill_path: Path, api_key: str = None, force: bool = False) -> 
             error_json = json.loads(error_body)
             error_msg = error_json.get("error", {}).get("message", "")
 
-            # If skill already exists and force mode, create a new version
+            # If skill already exists and force mode, check if update needed
             if force and "existing display_title" in error_msg:
-                existing_id = find_skill_by_title(display_title, api_key)
-                if existing_id:
-                    print(f"Skill already exists (ID: {existing_id}), creating new version...")
+                existing_skill = find_skill_by_title(display_title, api_key)
+                if existing_skill:
+                    existing_id = existing_skill.get("id", existing_skill.get("skill_id"))
+
+                    # Check content hash to see if update is needed
+                    current_hash = compute_skill_hash(skill_path)
+                    deployed_hash = get_deployed_hash(skill_path)
+
+                    if current_hash == deployed_hash:
+                        print(f"Skill unchanged (hash: {current_hash}), skipping.")
+                        return {
+                            "id": existing_id,
+                            "display_title": display_title,
+                            "status": "unchanged"
+                        }
+
+                    print(f"Skill changed (hash: {deployed_hash} -> {current_hash}), creating new version...")
                     version_result = create_skill_version(existing_id, skill_path, api_key)
                     version = version_result.get("version", "unknown")
                     print(f"Created new version: {version}")
+
+                    # Save the new hash
+                    save_deployed_hash(skill_path, current_hash)
+
                     return {
                         "id": existing_id,
                         "display_title": display_title,
