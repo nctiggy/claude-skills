@@ -61,11 +61,11 @@ cd CanvOS
 cat << 'EOF' > .arg
 # OS Configuration
 OS_DISTRIBUTION=ubuntu
-OS_VERSION=22
+OS_VERSION=24.04    # Use 22.04 or 24.04
 
 # Kubernetes Configuration
 K8S_DISTRIBUTION=kubeadm
-K8S_VERSION=1.30.4
+K8S_VERSION=1.33.4  # Use n-1 patch version for upgrade demos
 
 # Registry Configuration (ask user)
 IMAGE_REGISTRY=ttl.sh
@@ -90,11 +90,23 @@ EOF
 
 ### Step 3: Create user-data
 
+**Always include a default user for SSH access and debugging:**
+
 ```bash
 cat << 'EOF' > user-data
 #cloud-config
 install:
   reboot: true
+
+# Default user for SSH access and debugging
+users:
+  - name: kairos
+    passwd: kairos
+    shell: /bin/bash
+    groups:
+      - sudo
+      - admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
 
 stylus:
   site:
@@ -104,12 +116,58 @@ stylus:
 EOF
 ```
 
+This creates a `kairos` user with password `kairos` for SSH access. Essential for:
+- Checking installation status
+- Validating configuration
+- Debugging registration issues
+- Viewing logs (`journalctl -u spectro-stylus-agent.service -f`)
+
 **Advanced user-data options:**
 ```yaml
 #cloud-config
 install:
   reboot: true
   device: /dev/sda              # Explicit install device
+
+users:
+  - name: kairos
+    passwd: kairos
+    shell: /bin/bash
+    groups: [sudo, admin]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+# Bridge networking (common for edge deployments)
+stages:
+  initramfs:
+    - name: "Setup bridge networking"
+      files:
+        - path: /etc/systemd/network/20-dhcp.network
+          content: |
+            [Match]
+            Name=en*
+            [Network]
+            Bridge=br0
+            LinkLocalAddressing=no
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.netdev
+          content: |
+            [NetDev]
+            Name=br0
+            Kind=bridge
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.network
+          content: |
+            [Match]
+            Name=br0
+            [Network]
+            DHCP=yes
+          permissions: 0644
+          owner: 0
+          group: 0
 
 stylus:
   site:
@@ -256,8 +314,11 @@ mv k8s_version.json.new k8s_version.json
 
 1. Upload ISO to hypervisor (Proxmox, VMware, etc.)
 2. Create VM with 4+ CPU, 8GB+ RAM, 100GB+ disk
-3. Boot from ISO
-4. Installation proceeds automatically, reboots when complete
+3. **Important**: Set boot order to disk first, then CD-ROM
+   - Empty disk will fall through to CD on first boot
+   - After install, system boots from disk (avoids reinstall loop)
+4. Boot VM - installation proceeds automatically
+5. System reboots when complete and boots from installed disk
 
 ### Verify Registration
 
@@ -385,17 +446,25 @@ docker login <registry>
 - Verify user-data has correct paletteEndpoint and edgeHostToken
 - Check network connectivity to Palette API
 - Review agent logs: `journalctl -u spectro-stylus-agent.service -f`
+- SSH in with `kairos/kairos` to debug
+
+### Re-imaging a node
+When re-imaging a previously registered node:
+1. Delete the old edge host from Palette first (Clusters → Edge Hosts → Delete)
+2. If registered in MaaS, remove from there too
+3. Then boot the new ISO
 
 ## Quick Reference
 
 | Item | Value |
 |------|-------|
 | CanvOS repo | `https://github.com/spectrocloud/CanvOS` |
-| Default OS | Ubuntu 22.04 |
-| Default K8s | kubeadm (use n-1 minor version) |
+| Default OS | Ubuntu 22.04 or 24.04 |
+| Default K8s | kubeadm (use n-1 patch version) |
 | ISO output | `build/palette-edge-installer.iso` |
 | Provider image tag | `<K8S_DIST>-<K8S_VERSION>-<CUSTOM_TAG>` |
 | Ephemeral registry | ttl.sh (24h expiry) |
+| Default SSH user | kairos / kairos |
 
 ## Links
 
