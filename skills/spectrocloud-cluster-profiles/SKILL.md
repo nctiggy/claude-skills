@@ -151,6 +151,24 @@ curl -s -X DELETE "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID"
 
 ---
 
+## API Gotchas
+
+**Pagination**: Max `limit` is ~200. Using `limit=500` returns null. Always check `.items | length`.
+
+**Filtering**: `filters=spec.registryUid=xxx` often fails. Better to fetch all and filter with jq:
+```bash
+curl -s "https://api.spectrocloud.com/v1/packs?limit=200" ... | \
+  jq '[.items[] | select(.spec.registryUid == "xxx")]'
+```
+
+**Version sorting**: API returns lexicographic order - "1.9.5" sorts AFTER "1.13.3". For N-1 version:
+```bash
+jq '[.items[] | select(.metadata.name == "edge-k3s")] |
+    sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[1]'
+```
+
+---
+
 ## Helper: Get All Pack UIDs for Edge Profile
 ```bash
 # Run this to get pack UIDs needed for profile creation
@@ -175,9 +193,28 @@ done
 
 | Type | API Value | Use Case |
 |------|-----------|----------|
-| Registry Pack | `spectro` or `oci` | Pre-built packs from Palette registries |
+| Registry Pack | `spectro` | Infrastructure packs (OS, K8s, CNI) from Public Repo |
+| Helm Pack | `helm` | Helm charts (nginx, metallb-helm) - check pack metadata |
 | Manifest Pack | `manifest` | Inline Kubernetes YAML manifests |
-| Helm Pack | `helm` | Helm charts from registered repos |
+| OCI Pack | `oci` | Some packs use OCI registries |
+
+**Determining type**: Check the pack's `spec.type` field via API. Common patterns:
+- `lb-metallb-helm` → type `helm`
+- `nginx` → type `helm`
+- `edge-k3s`, `cni-calico` → type `spectro`
+
+### Pack Naming
+
+Pack names aren't always obvious. Common mappings:
+
+| Common Name | Palette Pack Name |
+|-------------|-------------------|
+| metallb | `lb-metallb-helm` |
+| nginx-ingress | `nginx` |
+| calico | `cni-calico` |
+| cilium | `cni-cilium-oss` |
+
+**Preferred registry**: Use "Public Repo" (`5eecc89d0b150045ae661cef`) when a pack exists in multiple registries.
 
 ### Add Manifest Pack (Add-on Profile)
 ```bash
@@ -241,7 +278,7 @@ curl -s "https://api.spectrocloud.com/v1/registries/helm?limit=20" \
   jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, endpoint: .spec.endpoint}]'
 ```
 
-### Terraform: Manifest Pack
+### Terraform: Manifest Pack (Multiple Files)
 ```hcl
 resource "spectrocloud_cluster_profile" "addon" {
   name    = "manifest-example"
@@ -250,7 +287,7 @@ resource "spectrocloud_cluster_profile" "addon" {
   version = "1.0.0"
 
   pack {
-    name = "my-namespace"
+    name = "my-manifests"
     type = "manifest"
 
     manifest {
@@ -262,6 +299,40 @@ resource "spectrocloud_cluster_profile" "addon" {
           name: my-app
       EOT
     }
+    manifest {
+      name    = "configmap"
+      content = <<-EOT
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: app-config
+          namespace: my-app
+        data:
+          key: value
+      EOT
+    }
+  }
+}
+```
+
+### Terraform: Attach Manifest to Existing Pack
+```hcl
+pack {
+  name = data.spectrocloud_pack.hello_universe.name
+  tag  = data.spectrocloud_pack.hello_universe.version
+  uid  = data.spectrocloud_pack.hello_universe.id
+
+  # Attach additional manifest to this pack
+  manifest {
+    name    = "extra-configmap"
+    content = <<-EOT
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: hello-config
+      data:
+        setting: enabled
+    EOT
   }
 }
 ```
@@ -312,6 +383,25 @@ If a pack isn't found with a specific registry, **omit `registry_uid`**:
 data "spectrocloud_pack" "hello_universe" {
   name    = "hello-universe"
   version = "1.2.0"
+}
+```
+
+### Terraform: Profile Versioning
+
+Same profile name with different versions creates separate resources. Use `depends_on`:
+
+```hcl
+resource "spectrocloud_cluster_profile" "v1" {
+  name    = "my-profile"
+  version = "1.0.0"
+  # ... packs
+}
+
+resource "spectrocloud_cluster_profile" "v2" {
+  name       = "my-profile"
+  version    = "2.0.0"
+  depends_on = [spectrocloud_cluster_profile.v1]
+  # ... updated packs
 }
 ```
 
