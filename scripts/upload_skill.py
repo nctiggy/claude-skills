@@ -112,6 +112,45 @@ def find_skill_by_title(display_title: str, api_key: str) -> str | None:
     return None
 
 
+def create_skill_version(skill_id: str, skill_path: Path, api_key: str) -> dict:
+    """Create a new version of an existing skill."""
+    skill_path = Path(skill_path)
+    skill_name = skill_path.name
+
+    # Package the skill
+    print(f"Packaging {skill_name} for version update...")
+    package_path = package_skill(skill_path, validate=True)
+
+    # Read package content
+    with open(package_path, "rb") as f:
+        package_content = f.read()
+
+    # Create multipart body (no display_title needed for version creation)
+    body, content_type = create_multipart_body(
+        fields={},
+        files={"files[]": (f"{skill_name}.zip", package_content)}
+    )
+
+    # Upload new version
+    url = f"{API_BASE}/{skill_id}/versions"
+    headers = get_headers(api_key)
+    headers["Content-Type"] = content_type
+
+    req = Request(url, data=body, headers=headers, method="POST")
+
+    try:
+        with urlopen(req) as response:
+            result = json.loads(response.read().decode())
+            return result
+    except HTTPError as e:
+        error_body = e.read().decode()
+        try:
+            error_json = json.loads(error_body)
+            raise ValueError(f"API error ({e.code}): {json.dumps(error_json, indent=2)}")
+        except json.JSONDecodeError:
+            raise ValueError(f"API error ({e.code}): {error_body}")
+
+
 def upload_skill(skill_path: Path, api_key: str = None, force: bool = False) -> dict:
     """Package and upload a skill to the Anthropic API.
 
@@ -156,12 +195,20 @@ def upload_skill(skill_path: Path, api_key: str = None, force: bool = False) -> 
             error_json = json.loads(error_body)
             error_msg = error_json.get("error", {}).get("message", "")
 
-            # If skill already exists and force mode, return existing skill info
+            # If skill already exists and force mode, create a new version
             if force and "existing display_title" in error_msg:
                 existing_id = find_skill_by_title(display_title, api_key)
                 if existing_id:
-                    print(f"Skill already exists (ID: {existing_id}), skipping upload.")
-                    return {"id": existing_id, "display_title": display_title, "status": "already_exists"}
+                    print(f"Skill already exists (ID: {existing_id}), creating new version...")
+                    version_result = create_skill_version(existing_id, skill_path, api_key)
+                    version = version_result.get("version", "unknown")
+                    print(f"Created new version: {version}")
+                    return {
+                        "id": existing_id,
+                        "display_title": display_title,
+                        "version": version,
+                        "status": "version_created"
+                    }
 
             raise ValueError(f"API error ({e.code}): {json.dumps(error_json, indent=2)}")
         except json.JSONDecodeError:
