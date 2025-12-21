@@ -201,6 +201,129 @@ done
 
 ---
 
+## Manifests and Helm Charts
+
+### Pack Types
+
+| Type | API Value | Use Case |
+|------|-----------|----------|
+| Registry Pack | `spectro` or `oci` | Pre-built packs from Palette registries |
+| Manifest Pack | `manifest` | Inline Kubernetes YAML manifests |
+| Helm Pack | `helm` | Helm charts from registered repos |
+
+### Add Manifest Pack (Add-on Profile)
+```bash
+# Manifest packs work in add-on profiles (not infra-only)
+curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {"name": "my-manifest-addon"},
+    "spec": {
+      "version": "1.0.0",
+      "template": {
+        "type": "add-on",
+        "cloudType": "all",
+        "packs": [
+          {
+            "name": "my-namespace",
+            "layer": "addon",
+            "type": "manifest",
+            "tag": "1.0.0",
+            "values": "pack:\n  namespace: default",
+            "manifests": [
+              {
+                "name": "namespace-manifest",
+                "content": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: my-app"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }'
+```
+
+### Add Manifest to Existing Pack Layer
+```bash
+# Attach manifests to any pack (infra or addon) after profile creation
+curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID/packs/$PACK_NAME/manifests" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "custom-config",
+    "content": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\ndata:\n  key: value"
+  }'
+# Returns: {"uid": "manifest-uid"}
+```
+
+### Get Manifest Content
+```bash
+curl -s "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID/packs/$PACK_NAME/manifests/$MANIFEST_UID" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" | jq '.spec.published.content'
+```
+
+### List Helm Registries
+```bash
+curl -s "https://api.spectrocloud.com/v1/registries/helm?limit=20" \
+  -H "ApiKey: $PALETTE_API_KEY" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, endpoint: .spec.endpoint}]'
+```
+
+### Terraform: Manifest Pack
+```hcl
+resource "spectrocloud_cluster_profile" "addon" {
+  name    = "manifest-example"
+  type    = "add-on"
+  cloud   = "all"
+  version = "1.0.0"
+
+  pack {
+    name = "my-namespace"
+    type = "manifest"
+
+    manifest {
+      name    = "namespace"
+      content = <<-EOT
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: my-app
+      EOT
+    }
+  }
+}
+```
+
+### Terraform: Helm Pack
+```hcl
+resource "spectrocloud_cluster_profile" "helm-addon" {
+  name    = "helm-example"
+  type    = "add-on"
+  cloud   = "all"
+  version = "1.0.0"
+
+  pack {
+    name         = "nginx"
+    type         = "helm"
+    registry_uid = data.spectrocloud_registry.bitnami.id
+    tag          = "15.0.0"
+    values       = <<-EOT
+      replicaCount: 2
+    EOT
+  }
+}
+
+data "spectrocloud_registry" "bitnami" {
+  name = "Bitnami"
+}
+```
+
+---
+
 ## BYOOS Pack Values
 
 **Agent Mode** (system.uri = "NA"):
