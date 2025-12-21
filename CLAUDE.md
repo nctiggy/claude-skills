@@ -13,22 +13,29 @@
    - Upload to Anthropic API
    - Create downloadable artifacts
 
-### Getting Artifacts
-After pushing:
-1. Go to GitHub Actions for this repo
-2. Find the latest successful workflow run
-3. Download artifacts from the workflow run page
+### After Pushing
 
-### Syncing to Claude Code CLI
-After downloading artifacts:
-```bash
-make sync  # Symlinks skills to ~/.claude/skills/
-```
+1. **Verify GitHub Actions succeeded**:
+   ```bash
+   gh run list --limit 3  # Check recent runs
+   gh run view <run-id>   # View details if needed
+   ```
 
-Or manually:
-```bash
-ln -sf $(pwd)/skills/* ~/.claude/skills/
-```
+2. **Sync for Claude Code CLI** (symlinks source dirs for live development):
+   ```bash
+   make sync  # Creates symlinks in ~/.claude/skills/
+   ```
+
+3. **Download artifacts for Claude Web Client**:
+   ```bash
+   # Get latest successful run ID
+   gh run list --limit 1 --status success
+
+   # Download and copy to Desktop
+   gh run download <run-id> --dir /tmp/skill-artifacts
+   cp /tmp/skill-artifacts/packaged-skills/*.skill ~/Desktop/
+   ```
+   Then drag `.skill` files into Claude web client to add them.
 
 ## Skills Structure
 
