@@ -388,6 +388,16 @@ data "spectrocloud_pack" "hello_universe" {
 }
 ```
 
+### Terraform: Provider Project Configuration
+
+**Always set `project_name`** - without it, resources go to the Default project:
+
+```hcl
+provider "spectrocloud" {
+  project_name = var.project_name  # Required for project-scoped resources!
+}
+```
+
 ### Terraform: Profile Versioning
 
 Same profile name with different versions creates separate resources. Use `depends_on`:
