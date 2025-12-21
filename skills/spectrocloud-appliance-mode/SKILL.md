@@ -220,37 +220,79 @@ docker pull <IMAGE_REGISTRY>/<IMAGE_REPO>:<K8S_DISTRIBUTION>-<K8S_VERSION>-<CUST
 
 2-node HA uses Postgres + Kine backend (not etcd). This is **appliance-mode only**.
 
+### Key Requirements
+- **K3s distribution only** (not kubeadm, rke2, etc.)
+- Ubuntu 22.04 recommended
+- Appliance mode required (agent mode not supported)
+- Central management only (not local management)
+
 ### Constraints
 - Tech preview status
-- Central management only (not local)
 - Cannot expand to 3+ nodes later
 - Cannot convert to etcd-backed cluster
+- Fixed at exactly 2 control plane nodes
 
 ### 2-Node .arg Configuration
 
 ```bash
 cat << 'EOF' > .arg
+# OS Configuration
 OS_DISTRIBUTION=ubuntu
-OS_VERSION=22
-K8S_DISTRIBUTION=kubeadm
-K8S_VERSION=1.30.4
+OS_VERSION=22.04
+
+# Kubernetes - MUST use K3s for 2-node
+K8S_DISTRIBUTION=k3s
+K8S_VERSION=1.33.3  # Use n-1 patch version
+
+# Registry Configuration
 IMAGE_REGISTRY=ttl.sh
 IMAGE_REPO=my-edge-2node
-CUSTOM_TAG=2node
+CUSTOM_TAG=two-node-demo
+
+# Architecture
 ARCH=amd64
 
-# Critical for 2-node
+# Security defaults
+FIPS_ENABLED=false
+CIS_HARDENING=false
+IS_UKI=false
+
+# Critical for 2-node - enables Postgres + Kine backend
 TWO_NODE=true
 EOF
+```
+
+**What TWO_NODE=true enables:**
+- PostgreSQL 16 installed for state storage
+- Kine binary for etcd API shim
+- Failover/recovery logic for 2-node HA
+
+### Build 2-Node Provider Image
+
+```bash
+# Build and push provider image
+earthly --push +provider-image
+
+# Output: ttl.sh/my-edge-2node:k3s-1.33.3-v4.8.3-two-node-demo
+
+# Build installer ISO
+earthly +iso
 ```
 
 ### 2-Node Cluster Profile
 
 When creating the cluster profile in Palette:
 1. Select Edge Native cloud type
-2. Add BYOOS pack with provider image reference
-3. Configure for 2-node topology (Postgres + Kine backend)
-4. Profile cannot be changed to 3+ node topology later
+2. Add BYOOS pack with 2-node provider image reference
+3. **Toggle "Two-Node Mode" during cluster creation**
+4. Select exactly 2 edge hosts
+5. Profile cannot be changed to 3+ node topology later
+
+### 2-Node Failover Behavior
+- One node is leader (handles writes), other is follower
+- Follower's liveness probe detects leader failure and self-promotes
+- Temporary K8s API unavailability during failover (~30 seconds)
+- On recovery, nodes compare timestamps; most recent becomes leader
 
 ## Content Bundles
 
