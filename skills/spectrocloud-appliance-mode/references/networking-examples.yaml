@@ -1,0 +1,136 @@
+# Network Configuration Examples for Appliance Mode
+# Source: https://github.com/spectrocloud/edge-config-examples/tree/main/general
+
+## Bridge Networking (br0)
+# Add to user-data under stages.initramfs
+
+stages:
+  initramfs:
+    - name: "Setup bridge networking"
+      files:
+        - path: /etc/systemd/network/20-dhcp.network
+          content: |
+            [Match]
+            Name=en*
+
+            [Network]
+            Bridge=br0
+            LinkLocalAddressing=no
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/20-dhcp-legacy.network
+          content: |
+            #[Match]
+            #Name=eth*
+
+            #[Network]
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.netdev
+          content: |
+            [NetDev]
+            Name=br0
+            Kind=bridge
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.network
+          content: |
+            [Match]
+            Name=br0
+
+            [Network]
+            DHCP=yes
+          permissions: 0644
+          owner: 0
+          group: 0
+
+---
+
+## Bond + Bridge Networking (LACP)
+# For high-availability network with bonded interfaces
+
+stages:
+  initramfs:
+    - name: "Setup bond and bridge"
+      files:
+        - path: /etc/systemd/network/10-bond0.netdev
+          content: |
+            [NetDev]
+            Name=bond0
+            Kind=bond
+            MTUBytes=1500
+
+            [Bond]
+            Mode=802.3ad
+            TransmitHashPolicy=layer3+4
+            MIIMonitorSec=1
+            LACPTransmitRate=fast
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/10-enp1s0f0.network
+          content: |
+            [Match]
+            Name=enp1s0f0
+
+            [Network]
+            Bond=bond0
+            LinkLocalAddressing=no
+            IPv6AcceptRA=no
+
+            [Link]
+            RequiredForOnline=no
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/10-enp1s0f1.network
+          content: |
+            [Match]
+            Name=enp1s0f1
+
+            [Network]
+            Bond=bond0
+            LinkLocalAddressing=no
+            IPv6AcceptRA=no
+
+            [Link]
+            RequiredForOnline=no
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/20-bond1.network
+          content: |
+            [Match]
+            Name=bond0
+
+            [Network]
+            Bridge=br0
+            RequiredForOnline=yes
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/30-br0.network
+          content: |
+            [Match]
+            Name=br0
+
+            [Network]
+            DHCP=yes
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/30-br0.netdev
+          content: |
+            [NetDev]
+            Name=br0
+            Kind=bridge
+            MTUBytes=1500
+
+            [Bridge]
+            STP=no
+          permissions: 0644
+          owner: 0
+          group: 0

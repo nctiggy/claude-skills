@@ -1,0 +1,148 @@
+# User-Data Examples for Appliance Mode
+
+## Basic user-data (minimum required)
+
+```yaml
+#cloud-config
+install:
+  reboot: true
+
+users:
+  - name: kairos
+    passwd: kairos
+    shell: /bin/bash
+    groups: [sudo, admin]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+stylus:
+  site:
+    paletteEndpoint: api.spectrocloud.com
+    edgeHostToken: <registration-token>
+    projectName: <project-name>
+```
+
+---
+
+## With Bridge Networking
+
+```yaml
+#cloud-config
+install:
+  reboot: true
+
+users:
+  - name: kairos
+    passwd: kairos
+    groups: [sudo, admin]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+stages:
+  initramfs:
+    - name: "Setup bridge networking"
+      files:
+        - path: /etc/systemd/network/20-dhcp.network
+          content: |
+            [Match]
+            Name=en*
+            [Network]
+            Bridge=br0
+            LinkLocalAddressing=no
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.netdev
+          content: |
+            [NetDev]
+            Name=br0
+            Kind=bridge
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.network
+          content: |
+            [Match]
+            Name=br0
+            [Network]
+            DHCP=yes
+          permissions: 0644
+          owner: 0
+          group: 0
+
+stylus:
+  site:
+    paletteEndpoint: api.spectrocloud.com
+    edgeHostToken: <token>
+    projectName: <project>
+```
+
+---
+
+## With Proxy and CA Certs
+
+```yaml
+#cloud-config
+install:
+  reboot: true
+  device: /dev/sda
+
+users:
+  - name: kairos
+    passwd: kairos
+    groups: [sudo, admin]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+stylus:
+  site:
+    paletteEndpoint: api.spectrocloud.com
+    edgeHostToken: <token>
+    projectName: <project>
+    name: custom-hostname
+    network:
+      httpProxy: http://proxy:8080
+      httpsProxy: http://proxy:8080
+      noProxy: localhost,127.0.0.1
+    caCerts:
+      - |
+        -----BEGIN CERTIFICATE-----
+        <CA cert content>
+        -----END CERTIFICATE-----
+```
+
+---
+
+## With Static IP
+
+```yaml
+#cloud-config
+install:
+  reboot: true
+
+users:
+  - name: kairos
+    passwd: kairos
+    groups: [sudo, admin]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+stages:
+  initramfs:
+    - name: "Configure static IP"
+      files:
+        - path: /etc/systemd/network/10-static.network
+          content: |
+            [Match]
+            Name=en*
+
+            [Network]
+            Address=192.168.1.100/24
+            Gateway=192.168.1.1
+            DNS=8.8.8.8
+          permissions: 0644
+          owner: 0
+          group: 0
+
+stylus:
+  site:
+    paletteEndpoint: api.spectrocloud.com
+    edgeHostToken: <token>
+    projectName: <project>
+```
