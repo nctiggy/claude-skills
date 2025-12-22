@@ -56,6 +56,12 @@ Partial pack values WILL fail validation.
 
 Mismatch causes: `PackType 'pack' is not matching with registry type 'oci'`
 
+**Discover registries:**
+```bash
+curl -s "https://api.spectrocloud.com/v1/registries/metadata" -H "ApiKey: $PALETTE_API_KEY" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, kind: .kind}]'
+```
+
 ## Common Pack Names
 
 | Search Term | Pack Name | Registry | Type |

@@ -128,6 +128,11 @@ earthly +iso
 
 When creating cluster: toggle "Two-Node Mode", select exactly 2 edge hosts.
 
+### 2-Node Failover Behavior
+- One node is leader (writes), other is follower
+- Follower detects leader failure and self-promotes (~30s failover)
+- On recovery, nodes compare timestamps; most recent becomes leader
+
 ## Content Bundles
 
 Pre-cache images for offline deployments:

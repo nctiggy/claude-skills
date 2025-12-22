@@ -134,8 +134,19 @@ curl -s -X PATCH "https://api.spectrocloud.com/v1/spectroclusters/$CLUSTER_UID/m
   -d '{"edgeHosts": [{"hostUid": "<new-host-uid>"}]}'
 ```
 
+## Profile Variables
+
+Override profile variables at cluster creation:
+```json
+"profiles": [{"uid": "<uid>", "variables": [
+  {"name": "K8sPodCIDR", "value": "100.64.0.0/18"},
+  {"name": "K8sServiceCIDR", "value": "100.64.64.0/18"}
+]}]
+```
+
 ## Additional Resources
 
+- `references/api-examples.md` - Full API examples (multi-node, 2-node)
 - `references/terraform-examples.md` - Full Terraform patterns
 
 ## Quick Reference
