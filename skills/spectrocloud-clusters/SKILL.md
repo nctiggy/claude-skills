@@ -165,6 +165,15 @@ Override profile variables at cluster creation:
 - `references/api-examples.md` - Full API examples (multi-node, 2-node)
 - `references/terraform-examples.md` - Full Terraform patterns
 
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "Two-node candidate priority demands one primary and one secondary" | Add `two_node_role = "primary"` and `"secondary"` to each edge_host block (Terraform) |
+| Terraform attribute not found | API vs Terraform naming differs - check with `terraform providers schema -json` |
+| Cluster stuck provisioning | Check edge host logs: `journalctl -u spectro-stylus-agent.service -f` |
+| Can't find latest K8s version | API paginates at 50 - use offset parameter to get all versions |
+
 ## Quick Reference
 
 | Operation | Endpoint |

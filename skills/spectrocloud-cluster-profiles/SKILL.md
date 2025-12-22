@@ -31,20 +31,43 @@ When adding applications, search in this order:
 3. Profile type? (cluster or add-on)
 4. What packs? (use `spectrocloud-common` skill for discovery)
 
-## Critical: Pack Values
+## MANDATORY: Pack Values Workflow
 
-Partial pack values WILL fail validation.
+**Partial pack values WILL fail validation.** Before creating ANY profile:
 
-1. **Fetch complete default values**:
-   ```bash
-   curl -s "https://api.spectrocloud.com/v1/packs/{PACK_UID}?includePackValues=true" \
-     -H "ApiKey: $PALETTE_API_KEY" | jq -r '.packValues[0].values'
-   ```
-2. **Keep the ENTIRE default values file**
-3. Only modify specific sections you need
-4. **ALWAYS update CIDRs** in K8s packs:
-   - `cluster-cidr` → `100.64.0.0/18`
-   - `service-cidr` → `100.64.64.0/18`
+### Step 1: Fetch Complete Values for EVERY Pack
+```bash
+# Get pack UID first (with pagination - API limits to 50)
+PACK_NAME="edge-k3s"
+PACK_UID=$((for OFFSET in 0 50 100; do
+  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
+    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
+done) | jq -s -r '[.[] | select(.status.disabled != true)] |
+  sort_by(.spec.version | split(".") | map(tonumber? // 0)) | reverse | .[0].metadata.uid')
+
+# Fetch COMPLETE values - save to file
+curl -s "https://api.spectrocloud.com/v1/packs/$PACK_UID?includePackValues=true" \
+  -H "ApiKey: $PALETTE_API_KEY" | jq -r '.packValues[0].values' > pack-values.yaml
+```
+
+### Step 2: Modify Only What's Needed
+Keep ALL other values intact. Only change specific fields.
+
+### Step 3: Include ENTIRE Values File
+```hcl
+# NEVER DO THIS - partial values cause failures
+values = <<-EOT
+  options:
+    system.uri: "my-image:tag"
+EOT
+
+# ALWAYS DO THIS - complete values with modification
+values = file("pack-values-modified.yaml")
+```
+
+### Step 4: Update CIDRs in K8s Packs
+- `cluster-cidr` → `100.64.0.0/18`
+- `service-cidr` → `100.64.64.0/18`
 
 ## Pack Types (Registry Determines Type!)
 
@@ -139,9 +162,18 @@ curl -s -X DELETE "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID"
   -H "ApiKey: $PALETTE_API_KEY" -H "ProjectUid: $PROJECT_UID"
 ```
 
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "Parameter X value is required" | You used partial pack values - fetch and include complete defaults |
+| "PackType 'pack' is not matching with registry type 'oci'" | Wrong pack type - check registry (Public Repo=spectro, Community=oci, Bitnami=helm) |
+| Can't find latest pack version | API paginates at 50 - use offset parameter |
+| Profile validation fails | Ensure ALL pack default values are included, not just modified sections |
+
 ## API Gotchas
 
-- **Pagination**: Max `limit` ~200. Using 500 returns null.
+- **Pagination**: API paginates at 50 results. Always use offset for pack discovery.
 - **Filtering**: Often fails. Fetch all and filter with jq.
 
 ## BYOOS Pack Values

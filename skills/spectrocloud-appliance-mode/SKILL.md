@@ -64,6 +64,8 @@ EOF
 
 ### Step 2: Create user-data
 
+**Bridge networking is recommended** for VM-based edge deployments (allows containers to get IPs on host network).
+
 ```bash
 cat << 'EOF' > user-data
 #cloud-config
@@ -76,6 +78,38 @@ users:
     groups: [sudo, admin]
     sudo: ALL=(ALL) NOPASSWD:ALL
 
+stages:
+  initramfs:
+    - name: "Setup bridge networking"
+      files:
+        - path: /etc/systemd/network/20-dhcp.network
+          content: |
+            [Match]
+            Name=en*
+            [Network]
+            Bridge=br0
+            LinkLocalAddressing=no
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.netdev
+          content: |
+            [NetDev]
+            Name=br0
+            Kind=bridge
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.network
+          content: |
+            [Match]
+            Name=br0
+            [Network]
+            DHCP=yes
+          permissions: 0644
+          owner: 0
+          group: 0
+
 stylus:
   site:
     paletteEndpoint: api.spectrocloud.com
@@ -84,7 +118,7 @@ stylus:
 EOF
 ```
 
-**For bridge networking, proxy, static IP examples**: See `references/user-data-examples.yaml`
+**For proxy, static IP, bonds**: See `references/user-data-examples.yaml`
 
 ### Step 3: Build
 
@@ -217,6 +251,76 @@ boot: order=scsi0;ide2;net0
 3. Set boot order: `order=scsi0;ide2;net0`
 4. Boot - installation is automatic
 5. Verify in Palette: Clusters > Edge Hosts > Registered
+
+## Automated Builds via SSH
+
+For environments with a dedicated build machine, automate the entire process:
+
+```bash
+BUILD_HOST="ubuntu@subtle-bug.maas"  # Or your build machine
+
+# Clone, configure, and build in one session
+ssh $BUILD_HOST << 'ENDSSH'
+cd ~ && rm -rf CanvOS && git clone https://github.com/spectrocloud/CanvOS.git && cd CanvOS
+
+cat << 'ARGFILE' > .arg
+OS_DISTRIBUTION=ubuntu
+OS_VERSION=22.04
+K8S_DISTRIBUTION=k3s
+K8S_VERSION=1.33.3
+IMAGE_REGISTRY=ttl.sh
+IMAGE_REPO=my-edge
+CUSTOM_TAG=2node
+ARCH=amd64
+TWO_NODE=true
+ARGFILE
+
+cat << 'USERDATA' > user-data
+#cloud-config
+install:
+  reboot: true
+users:
+  - name: kairos
+    passwd: kairos
+    groups: [sudo, admin]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+stages:
+  initramfs:
+    - name: "Setup bridge networking"
+      files:
+        - path: /etc/systemd/network/20-dhcp.network
+          content: |
+            [Match]
+            Name=en*
+            [Network]
+            Bridge=br0
+            LinkLocalAddressing=no
+        - path: /etc/systemd/network/bridge0.netdev
+          content: |
+            [NetDev]
+            Name=br0
+            Kind=bridge
+        - path: /etc/systemd/network/bridge0.network
+          content: |
+            [Match]
+            Name=br0
+            [Network]
+            DHCP=yes
+stylus:
+  site:
+    paletteEndpoint: api.spectrocloud.com
+    edgeHostToken: <TOKEN>
+    projectName: <PROJECT>
+USERDATA
+
+earthly --push +provider-image
+earthly +iso
+ENDSSH
+
+# Copy ISO back with version name
+scp $BUILD_HOST:~/CanvOS/build/palette-edge-installer.iso \
+  "./palette-edge-k3s-1.33.3-$(date +%Y%m%d).iso"
+```
 
 ## CI/CD Integration
 

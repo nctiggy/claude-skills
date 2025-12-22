@@ -91,6 +91,9 @@ machine_pool {
 
 ## 2-Node HA Cluster
 
+**Note**: API uses `twoNodeCandidatePriority` but Terraform provider >= 0.26.x uses `two_node_role`.
+Verify with: `terraform providers schema -json | jq '.provider_schemas[].resource_schemas.spectrocloud_cluster_edge_native'`
+
 ```hcl
 resource "spectrocloud_cluster_edge_native" "two_node" {
   name    = "two-node-cluster"
@@ -101,9 +104,9 @@ resource "spectrocloud_cluster_edge_native" "two_node" {
   }
 
   cloud_config {
-    ssh_keys           = [var.ssh_public_key]
-    vip                = var.cluster_vip
-    ntp_servers        = ["time.google.com"]
+    ssh_keys            = [var.ssh_public_key]
+    vip                 = var.cluster_vip
+    ntp_servers         = ["time.google.com"]
     is_two_node_cluster = true  # Enable 2-node HA
   }
 
@@ -113,12 +116,12 @@ resource "spectrocloud_cluster_edge_native" "two_node" {
     control_plane_as_worker = true
 
     edge_host {
-      host_uid                   = data.spectrocloud_appliance.node1.id
-      two_node_candidate_priority = "primary"
+      host_uid      = data.spectrocloud_appliance.node1.id
+      two_node_role = "primary"    # NOT two_node_candidate_priority
     }
     edge_host {
-      host_uid                   = data.spectrocloud_appliance.node2.id
-      two_node_candidate_priority = "secondary"
+      host_uid      = data.spectrocloud_appliance.node2.id
+      two_node_role = "secondary"  # NOT two_node_candidate_priority
     }
   }
 }

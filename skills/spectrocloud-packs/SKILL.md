@@ -9,23 +9,26 @@ Pack-specific configuration patterns, gotchas, and known issues.
 
 ## Pack Discovery
 
-Before adding a pack, find it and get its default values:
-```bash
-# Find pack by name - filter first, then sort to get newest version
-PACK_NAME="piraeus-operator"
-curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=200" \
-  -H "ApiKey: $PALETTE_API_KEY" | \
-  jq '[.items[] | select(.status.disabled != true) |
-    {name: .metadata.name, version: .spec.version, uid: .metadata.uid,
-     registry: .spec.registryUid, layer: .spec.layer}] |
-    sort_by(.version | split(".") | map(tonumber? // 0)) | reverse'
+**Important**: Pack API paginates at 50 results. Always use pagination for packs with many versions.
 
-# Get the LATEST version's UID automatically
-PACK_UID=$(curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=200" \
-  -H "ApiKey: $PALETTE_API_KEY" | \
-  jq -r '[.items[] | select(.status.disabled != true)] |
-    sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
-    reverse | .[0] | .metadata.uid')
+```bash
+# Find pack by name with pagination - get ALL versions
+PACK_NAME="piraeus-operator"
+(for OFFSET in 0 50 100 150; do
+  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
+    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
+done) | jq -s '[.[] | select(.status.disabled != true) |
+  {name: .metadata.name, version: .spec.version, uid: .metadata.uid,
+   registry: .spec.registryUid, layer: .spec.layer}] |
+  sort_by(.version | split(".") | map(tonumber? // 0)) | reverse'
+
+# Get the LATEST version's UID automatically (with pagination)
+PACK_UID=$((for OFFSET in 0 50 100 150; do
+  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
+    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
+done) | jq -s -r '[.[] | select(.status.disabled != true)] |
+  sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
+  reverse | .[0] | .metadata.uid')
 
 # Get full default values (CRITICAL - never use partial values)
 curl -s "https://api.spectrocloud.com/v1/packs/$PACK_UID?includePackValues=true" \
