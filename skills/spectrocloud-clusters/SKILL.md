@@ -165,14 +165,31 @@ Override profile variables at cluster creation:
 - `references/api-examples.md` - Full API examples (multi-node, 2-node)
 - `references/terraform-examples.md` - Full Terraform patterns
 
+## Edge Host Token Creation
+
+**IMPORTANT**: Edge host tokens are TENANT-scoped, not project-scoped. Do NOT include ProjectUid header.
+
+```bash
+# Create edge host token (NO ProjectUid header!)
+curl -s -X POST "https://api.spectrocloud.com/v1/edgehosts/tokens" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"metadata": {"name": "my-token"}}'
+
+# Token value is in spec.token (NOT status.token)
+TOKEN=$(echo $RESPONSE | jq -r '.spec.token')
+```
+
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
+| "Enable two-node cluster to configure candidate priority" | Set `is_two_node_cluster = true` in Terraform cloud_config block |
 | "Two-node candidate priority demands one primary and one secondary" | Add `two_node_role = "primary"` and `"secondary"` to each edge_host block (Terraform) |
 | Terraform attribute not found | API vs Terraform naming differs - check with `terraform providers schema -json` |
 | Cluster stuck provisioning | Check edge host logs: `journalctl -u spectro-stylus-agent.service -f` |
 | Can't find latest K8s version | API paginates at 50 - use offset parameter to get all versions |
+| "ProjectUidIsNotEmpty" on token creation | Edge host tokens are tenant-scoped - remove ProjectUid header |
 
 ## Quick Reference
 

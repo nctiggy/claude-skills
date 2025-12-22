@@ -181,6 +181,48 @@ curl -s -X DELETE "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID"
 - **Agent Mode**: `options: { system.uri: "NA" }`
 - **Appliance Mode**: Set `system.uri` to provider image URL
 
+### CRITICAL: Provider Image / K8s Version Alignment
+
+For appliance mode, **three components MUST align**:
+1. **Provider image K8s version** - Built into image during CanvOS build
+2. **BYOOS pack system.uri** - Must reference exact image tag from registry
+3. **K8s layer version** - The edge-k3s pack version must match
+
+Example (all referencing K3s 1.32.9):
+```
+Provider image:    docker.io/myrepo/edge:k3s-1.32.9-v4.8.1-k3s-1.32.9-2node
+BYOOS system.uri:  docker.io/myrepo/edge:k3s-1.32.9-v4.8.1-k3s-1.32.9-2node  (SAME)
+K8s pack version:  1.32.9  (MATCHES provider image)
+```
+
+**Failure mode**: Mismatched versions cause cluster provisioning to hang or fail.
+
+## Terraform: Registry UID Required
+
+When packs exist in multiple registries, `spectrocloud_pack` data source returns error:
+```
+Error: Multiple packs returned. Restrict packs criteria to a single match.
+```
+
+**Solution**: Always specify `registry_uid`:
+```hcl
+locals {
+  palette_registry_uid = "5eecc89d0b150045ae661cef"  # Public Palette registry
+}
+
+data "spectrocloud_pack" "edge_k3s" {
+  name         = "edge-k3s"
+  version      = "1.32.9"
+  registry_uid = local.palette_registry_uid  # Required!
+}
+```
+
+Get registry UID:
+```bash
+curl -s "https://api.spectrocloud.com/v1/registries/metadata" -H "ApiKey: $API_KEY" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid}]'
+```
+
 ## Profile Variables
 
 Use for cluster-specific values: `{{ .spectro.var.K8sPodCIDR }}`, `{{ .spectro.var.K8sServiceCIDR }}`
