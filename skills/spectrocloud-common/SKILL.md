@@ -82,13 +82,16 @@ curl -s "https://api.spectrocloud.com/v1/projects" \
 
 **Ask user for the pack name.** If unknown, suggest browsing Palette UI or searching.
 
-### Find Pack by Exact Name
+### Find Pack by Exact Name (All Versions, Newest First)
 ```bash
-curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=hello-universe&limit=50" \
+# Filter by name AND sort properly to get newest version first
+curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=hello-universe&limit=200" \
   -H "ApiKey: $PALETTE_API_KEY" \
   -H "ProjectUid: $PROJECT_UID" | \
-  jq '[.items[] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid,
-      registryUid: .spec.registryUid, layer: .spec.layer}] | sort_by(.version) | reverse'
+  jq '[.items[] | select(.status.disabled != true) |
+    {name: .metadata.name, version: .spec.version, uid: .metadata.uid,
+     registryUid: .spec.registryUid, layer: .spec.layer}] |
+    sort_by(.version | split(".") | map(tonumber? // 0)) | reverse'
 ```
 
 ### Get Pack Default Values (Critical!)
@@ -173,13 +176,33 @@ curl -s "https://api.spectrocloud.com/v1/edgehosts" \
 
 ### Get Latest Pack Version
 ```bash
+# Step 1: Filter by pack name first (reduces result set)
 PACK_NAME="edge-k3s"
-curl -s "https://api.spectrocloud.com/v1/packs?limit=100" \
+curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=200" \
   -H "ApiKey: $PALETTE_API_KEY" | \
-  jq --arg name "$PACK_NAME" '
-    [.items[] | select(.metadata.name == $name and .status.disabled != true)] |
-    sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
-    reverse | .[0] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid}'
+  jq '[.items[] | select(.status.disabled != true) |
+    {name: .metadata.name, version: .spec.version, uid: .metadata.uid, registry: .spec.registryUid}] |
+    sort_by(.version | split(".") | map(tonumber? // 0)) |
+    reverse | .[0]'
+```
+
+**If pack has many versions** (pagination needed):
+```bash
+# Get all versions with pagination
+PACK_NAME="edge-k3s"
+OFFSET=0
+ALL_PACKS="[]"
+while true; do
+  BATCH=$(curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=200&offset=$OFFSET" \
+    -H "ApiKey: $PALETTE_API_KEY")
+  COUNT=$(echo "$BATCH" | jq '.items | length')
+  [ "$COUNT" -eq 0 ] && break
+  ALL_PACKS=$(echo "$ALL_PACKS" "$BATCH" | jq -s '.[0] + [.[1].items[]]')
+  OFFSET=$((OFFSET + 200))
+done
+echo "$ALL_PACKS" | jq '[.[] | select(.status.disabled != true)] |
+  sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
+  reverse | .[0] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid}'
 ```
 
 ---
