@@ -339,28 +339,24 @@ See `references/cicd-workflow.md` for GitHub Actions and GitLab CI examples.
 | Stale ISO used | List ISOs on hypervisor, delete old ones, re-upload versioned ISO |
 | Storage pool too small | 100GB disk leaves ~2.5GB free - increase disk or add data disk |
 
-## Provider Image Tag Format
+## Provider Image Tag
 
-CanvOS generates provider images with a specific tag format:
-```
-{K8S_DIST}-{K8S_VERSION}-v{CANVAS_VERSION}-{K8S_DIST}-{K8S_VERSION}-{CUSTOM_TAG}
-```
+**Don't assume the tag format** - CanvOS generates tags based on `.arg` values. Always check the actual tag after build:
 
-**Example**: For `.arg` with `K8S_DISTRIBUTION=k3s`, `K8S_VERSION=1.32.9`, `CUSTOM_TAG=2node`:
-```
-k3s-1.32.9-v4.8.1-k3s-1.32.9-2node
-```
-
-**CRITICAL**: Note the actual tag pushed to registry - this EXACT tag must be used in:
-1. BYOOS pack `options.system.uri` in the cluster profile
-2. The K8s layer version in the cluster profile must match (e.g., `1.32.9`)
-
-Check actual tags after build:
 ```bash
-docker images | grep my-edge
-# Or check registry:
-curl -s "https://hub.docker.com/v2/repositories/myrepo/edge/tags" | jq '.results[].name'
+# Check local images after build
+docker images | grep $IMAGE_REPO
+
+# Check registry (for Docker Hub)
+curl -s "https://hub.docker.com/v2/repositories/$IMAGE_REPO/tags" | jq '.results[].name'
+
+# Check ttl.sh (use crane or skopeo)
+crane ls ttl.sh/$IMAGE_REPO
 ```
+
+**CRITICAL**: Use the EXACT tag from the build output in:
+1. BYOOS pack `options.system.uri` in the cluster profile
+2. Ensure K8s pack version matches what was built into the image
 
 ## Quick Reference
 
@@ -369,7 +365,7 @@ curl -s "https://hub.docker.com/v2/repositories/myrepo/edge/tags" | jq '.results
 | CanvOS | `https://github.com/spectrocloud/CanvOS` |
 | ISO output | `build/palette-edge-installer.iso` (rename with version!) |
 | Versioned ISO | `palette-edge-<K8S_VERSION>-<YYYYMMDD-HHMM>.iso` |
-| Image tag | `{K8S_DIST}-{K8S_VERSION}-v{CANVAS_VERSION}-{K8S_DIST}-{K8S_VERSION}-{CUSTOM_TAG}` |
+| Image tag | Check `docker images` after build - use exact tag |
 | Proxmox boot order | `boot: order=scsi0;ide2;net0` |
 | SSH access | kairos / kairos |
 

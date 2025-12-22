@@ -188,12 +188,10 @@ For appliance mode, **three components MUST align**:
 2. **BYOOS pack system.uri** - Must reference exact image tag from registry
 3. **K8s layer version** - The edge-k3s pack version must match
 
-Example (all referencing K3s 1.32.9):
-```
-Provider image:    docker.io/myrepo/edge:k3s-1.32.9-v4.8.1-k3s-1.32.9-2node
-BYOOS system.uri:  docker.io/myrepo/edge:k3s-1.32.9-v4.8.1-k3s-1.32.9-2node  (SAME)
-K8s pack version:  1.32.9  (MATCHES provider image)
-```
+**Workflow:**
+1. After CanvOS build, check actual tag: `docker images | grep $IMAGE_REPO`
+2. Use that EXACT tag in BYOOS `system.uri`
+3. Set K8s pack version to match what was built (e.g., if you built with `K8S_VERSION=1.32.9`, use edge-k3s version 1.32.9)
 
 **Failure mode**: Mismatched versions cause cluster provisioning to hang or fail.
 
