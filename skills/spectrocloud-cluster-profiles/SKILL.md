@@ -45,6 +45,10 @@ Partial pack values WILL fail validation (e.g., `Parameter 'manifests.hello-univ
 2. **Keep the ENTIRE default values file** - do not summarize or truncate
 3. Only modify specific sections you need to change
 4. Include full values in the profile - missing values cause validation failures
+5. **ALWAYS update CIDRs** in K8s packs (k3s, kubeadm, etc.):
+   - Change `cluster-cidr`/pod CIDR to `100.64.0.0/18`
+   - Change `service-cidr` to `100.64.64.0/18`
+   - Pack defaults (e.g., 192.168.x.x) will cause conflicts
 
 ---
 
