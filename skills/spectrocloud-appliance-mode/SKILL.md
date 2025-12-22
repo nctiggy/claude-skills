@@ -136,24 +136,38 @@ users:
     sudo: ALL=(ALL) NOPASSWD:ALL
 
 # Create br0 bridge interface (recommended for edge deployments)
+# See: https://github.com/spectrocloud/edge-config-examples/tree/main/general
 stages:
-  network:
-    - name: "Setup br0 bridge"
-      commands:
-        - |
-          cat > /etc/netplan/99-bridge.yaml << 'NETPLAN'
-          network:
-            version: 2
-            renderer: networkd
-            ethernets:
-              eth0:
-                dhcp4: false
-            bridges:
-              br0:
-                interfaces: [eth0]
-                dhcp4: true
-          NETPLAN
-        - netplan apply
+  initramfs:
+    - name: "Setup bridge networking"
+      files:
+        - path: /etc/systemd/network/20-dhcp.network
+          content: |
+            [Match]
+            Name=en*
+            [Network]
+            Bridge=br0
+            LinkLocalAddressing=no
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.netdev
+          content: |
+            [NetDev]
+            Name=br0
+            Kind=bridge
+          permissions: 0644
+          owner: 0
+          group: 0
+        - path: /etc/systemd/network/bridge0.network
+          content: |
+            [Match]
+            Name=br0
+            [Network]
+            DHCP=yes
+          permissions: 0644
+          owner: 0
+          group: 0
 
 stylus:
   site:
@@ -424,32 +438,12 @@ Clone CanvOS fresh each build, copy config files in.
 
 ## FIPS Compliance (Advanced)
 
-For federal compliance requirements:
-
-### Requirements
-- OS: RHEL or Ubuntu Pro with active subscription
-- K8s: RKE2 or kubeadm-fips only (NOT k3s, kubeadm, nodeadm)
-- Secure Boot: Must be DISABLED on target devices
-
-### .arg for FIPS
-```bash
-OS_DISTRIBUTION=rhel
-OS_VERSION=9
-K8S_DISTRIBUTION=rke2
-FIPS_ENABLED=true
-```
+Requires RHEL/Ubuntu Pro, RKE2 or kubeadm-fips, Secure Boot DISABLED.
+Set `FIPS_ENABLED=true` in .arg.
 
 ## Trusted Boot (Advanced)
 
-SecureBoot + Full Disk Encryption + Measured Boot:
-
-### .arg for Trusted Boot
-```bash
-IS_UKI=true
-AUTO_ENROLL_SECUREBOOT_KEYS=true
-```
-
-Requires UEFI-capable hardware with TPM 2.0.
+SecureBoot + FDE + Measured Boot. Set `IS_UKI=true` in .arg. Requires TPM 2.0.
 
 ## Troubleshooting
 
