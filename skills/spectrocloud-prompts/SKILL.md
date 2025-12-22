@@ -1,111 +1,111 @@
 ---
 name: spectrocloud-prompts
-description: Generate context-efficient prompts for SpectroCloud tasks. Uses critic loop to optimize. Enforces skill usage and agent delegation.
+description: Generate context-efficient prompts for SpectroCloud tasks. Skills are global - agents must READ them. Learnings stay local.
 ---
 
 # SpectroCloud Prompt Generator
 
-Generate prompts optimized for **context preservation** in the primary session.
+Generate prompts that **preserve context** and **force skill usage**.
 
-## Core Principles
+## Critical Understanding
 
-### 1. Context is Precious
-The main session's context window is limited. Every prompt MUST:
-- **Delegate heavy work to agents** - Exploration, builds, monitoring go to subagents
-- **Use skills as pre-loaded knowledge** - Don't re-discover what's documented
-- **Keep main session as orchestrator** - Coordinate, don't execute everything inline
+### Skills are GLOBAL
+Claude Code automatically loads skills from `~/.claude/skills/`. You do NOT need:
+- File paths to skills
+- Directory references
+- Any special loading
 
-### 2. Skills ARE the Knowledge
-Skills contain tested, refined knowledge. Prompts should:
-- Reference skills, not reinvent
-- Trust skill guidance over improvisation
-- Add learnings back to skills, not prompts
+Just say "READ the `spectrocloud-common` skill" and Claude has access.
 
-### 3. Agents Preserve Context
-Use agents (Task tool) for:
-- Long-running operations (builds, monitoring)
-- Exploration and discovery
-- Any task that generates verbose output
+### Agents Must READ Skills
+Saying "use the skill" is not enough. Agents ignore vague instructions. Be explicit:
+
+**BAD**: "Use the spectrocloud-common skill for auth"
+**GOOD**: "FIRST, READ the `spectrocloud-common` skill. Follow its API authentication pattern exactly."
+
+### Learnings Stay Local
+Don't write learnings back to the skills repo. Write to the current working directory:
+- `./learnings.md` - Capture issues, solutions, new patterns
+- At session end, user can review and merge to skills if valuable
 
 ---
 
-## Prompt Generation Workflow (MANDATORY)
+## Agent Instructions Template
 
-**Every prompt MUST go through the critic loop before being finalized.**
-
-### Step 1: Draft Initial Prompt
-Write the prompt following the template structure below.
-
-### Step 2: Run Prompt Critic
-Apply this critic checklist to the draft:
+Every agent prompt MUST include this pattern:
 
 ```
+BEFORE doing anything:
+1. READ the `spectrocloud-[name]` skill file
+2. Follow its patterns EXACTLY - do not improvise
+3. If something isn't in the skill, document it in ./learnings.md
+
+You have access to these skills (READ THEM):
+- `spectrocloud-common` - [what to look for]
+- `spectrocloud-[specific]` - [what to look for]
+```
+
+---
+
+## Learnings Agent Pattern
+
+Instead of writing back to the skills repo, use this local pattern:
+
+```
+## Learnings Tracker Agent
+
+Your job: Document issues and solutions as they occur.
+
+Output file: ./learnings.md (in current working directory)
+
+Format:
+```markdown
+# Session Learnings - [DATE]
+
+## Issues Encountered
+
+### [Issue Title]
+- **What happened**:
+- **Root cause**:
+- **Solution**:
+- **Skill gap**: Which skill should have covered this?
+
+## New Patterns Discovered
+[Anything that worked well but isn't documented]
+
+## Skill Improvement Suggestions
+[Specific additions to specific skills]
+```
+
+At session end, user reviews ./learnings.md and decides what to merge into skills.
+```
+
+---
+
 ## Prompt Critic Checklist
 
+Before finalizing any prompt:
+
+```
+### Skill Enforcement
+- [ ] Does it say "READ the skill" not just "use the skill"?
+- [ ] Are skill names exact? (`spectrocloud-common` not `common`)
+- [ ] Does each agent have explicit READ instructions?
+
 ### Context Efficiency
-- [ ] Does it delegate long tasks to agents?
-- [ ] Does it avoid verbose exploration in main session?
-- [ ] Are skills referenced instead of inline explanations?
-- [ ] Is the main session orchestrating, not doing everything?
+- [ ] Heavy work delegated to agents?
+- [ ] Main session orchestrates only?
+- [ ] No verbose exploration in main session?
 
-### Skill Usage
-- [ ] Are ALL relevant skills listed?
-- [ ] Does each step reference which skill to consult?
-- [ ] Are critical gotchas from skills baked in?
-- [ ] Is there NO redundant explanation of what skills already cover?
+### Learnings
+- [ ] Learnings write to ./learnings.md (local)?
+- [ ] No references to skills repo paths?
+- [ ] User reviews learnings at end?
 
-### Agent Delegation
-- [ ] Build tasks → agent
-- [ ] Monitoring/polling → agent
-- [ ] Discovery/exploration → agent
-- [ ] Pack value fetching → agent or inline (small)
-- [ ] Terraform apply → can be main session (needs interaction)
-
-### Failure Handling
-- [ ] Does it reference troubleshooting skill?
-- [ ] Are common failures listed with skill-based recovery?
-- [ ] Is there guidance on when to escalate vs retry?
-
-### Conciseness
-- [ ] Can any section be shorter?
-- [ ] Are there redundant instructions?
-- [ ] Is the prompt <100 lines when possible?
-```
-
-### Step 3: Refine Based on Critic
-Fix any issues found. Repeat critic until all boxes checked.
-
-### Step 4: Finalize
-The prompt is ready when the critic passes.
-
----
-
-## Prompt Template Structure
-
-```
-## Task: [TASK NAME]
-
-### Context Strategy
-- Main session: [what it orchestrates]
-- Agents: [what gets delegated]
-
-### Required Skills
-Use these skills - they contain the knowledge, don't reinvent:
-- `spectrocloud-X` - [one-line purpose]
-
-### Critical Rules
-[Only rules NOT in skills - assume skills will be read]
-
-### Workflow
-
-#### Phase N: [Name]
-**[Agent/Main]**: [brief description]
-- Step (skill: `skill-name`)
-- Step (skill: `skill-name`)
-
-### On Failure
-- Check `spectrocloud-troubleshooting`
-- [Specific recovery if not in troubleshooting skill]
+### Agent Specificity
+- [ ] Each agent has ONE clear job?
+- [ ] Agents told exactly what to return?
+- [ ] Failure handling explicit?
 ```
 
 ---
@@ -115,70 +115,125 @@ Use these skills - they contain the knowledge, don't reinvent:
 ```
 ## Task: Deploy 2-Node Edge Cluster
 
-### Context Strategy
-- Main session: Orchestrate phases, create Terraform, final deployment
-- Build Agent: CanvOS build on remote machine
-- Monitor Agent: Watch cluster events during provisioning
-- Skill Tracker Agent: Capture learnings for skill updates
+### How to Use Skills
+Skills are globally available. Before each phase, READ the relevant skill files.
+Do NOT improvise - follow skill patterns exactly.
 
-### Required Skills
-Use these - they contain the knowledge:
-- `spectrocloud-common` - Auth, project lookup, pack discovery (pagination!)
-- `spectrocloud-appliance-mode` - CanvOS, user-data, ISO versioning
-- `spectrocloud-cluster-profiles` - Pack values, version alignment
-- `spectrocloud-clusters` - 2-node API/Terraform structure
+### Required Skills (READ THESE)
+- `spectrocloud-common` - API auth, project lookup, pack discovery with pagination
+- `spectrocloud-appliance-mode` - CanvOS build, .arg config, user-data, ISO versioning
+- `spectrocloud-cluster-profiles` - Pack values, version alignment, Terraform patterns
+- `spectrocloud-clusters` - 2-node structure, edge tokens, Terraform patterns
 - `spectrocloud-troubleshooting` - Event monitoring, known errors
 
-### Critical Rules
-1. Pack API paginates at 50 - use offset loop
-2. Check actual image tag after build - don't assume format
-3. 2-node = K3s only
-4. Edge tokens = tenant-scoped (no ProjectUid)
-5. Version alignment: provider image K8s = edge-k3s pack version
+### Learnings
+Write any issues/discoveries to: ./learnings.md
+Do NOT attempt to update the skills repo.
 
-### Workflow
+---
 
-#### Phase 1: Setup [Main]
-- Get API key via MCP (skill: `common`)
-- Look up project UID (skill: `common`)
-- Create edge token - NO ProjectUid header (skill: `clusters`)
+### Phase 1: Setup [Main Session]
 
-#### Phase 2: Build [Agent]
-Spawn agent for remote build:
-- SSH to build machine, clone CanvOS
-- Configure .arg: K3s, TWO_NODE=true (skill: `appliance-mode`)
-- Create user-data with bridge networking (skill: `appliance-mode`)
-- Build: `earthly --push +provider-image && earthly +iso`
-- **Capture actual image tag**: `docker images | grep $REPO`
-- Rename ISO with version
-- Return: image tag, ISO path
+FIRST: READ `spectrocloud-common` skill.
 
-#### Phase 3: Deploy VMs [Main or Agent]
-- Upload ISO to Proxmox
-- Create 2 VMs (4 CPU, 8GB, 150GB, boot: scsi0;ide2;net0)
-- Wait for edge hosts in Palette
+1. Get API key via MCP tools (pattern in skill)
+2. Look up project UID by name (pattern in skill)
+3. READ `spectrocloud-clusters` skill for edge token creation
+4. Create edge token - NOTE: tenant-scoped, NO ProjectUid header
 
-#### Phase 4: Terraform [Main]
-Create reusable Terraform (skill: `cluster-profiles`, `clusters`):
-- Fetch pack values (use image tag from Phase 2)
-- Create profiles/ module
-- Create clusters/ module
-- Apply profiles first, then clusters
+---
 
-#### Phase 5: Monitor [Agent]
-Spawn monitor agent:
-- Poll events every 10s (skill: `troubleshooting`)
-- Report errors, filter noise
-- Alert on actionable issues
+### Phase 2: Build [Agent]
+
+Spawn build agent with this prompt:
+
+```
+You are building CanvOS artifacts for a 2-node Edge cluster.
+
+FIRST: READ the `spectrocloud-appliance-mode` skill completely.
+Follow its patterns exactly.
+
+Tasks:
+1. SSH to build machine
+2. Clone CanvOS repo
+3. Create .arg file (skill has 2-node example - K3s, TWO_NODE=true)
+4. Create user-data (skill has bridge networking example)
+5. Run: earthly --push +provider-image && earthly +iso
+6. IMPORTANT: Run `docker images | grep [REPO]` and capture EXACT tag
+7. Rename ISO with version per skill guidance
+
+Return to main session:
+- Exact image tag from docker images output
+- ISO filename with version
+
+If anything fails or is unclear, write to ./learnings.md
+```
+
+---
+
+### Phase 3: VMs [Main or Agent]
+
+1. Upload versioned ISO to Proxmox
+2. Create 2 VMs: 4+ CPU, 8GB+ RAM, 150GB+ disk
+3. Boot order: `order=scsi0;ide2;net0` (disk first!)
+4. Boot VMs, wait for edge hosts in Palette
+
+---
+
+### Phase 4: Terraform [Main Session]
+
+FIRST: READ `spectrocloud-cluster-profiles` and `spectrocloud-clusters` skills.
+Look specifically at: Terraform examples, registry_uid requirement, 2-node structure.
+
+1. Create profiles/ directory with infrastructure profile
+   - Use exact image tag from Phase 2
+   - Match K8s pack version to what was built
+   - Include registry_uid on pack data sources
+
+2. Create clusters/ directory with cluster config
+   - Reference profile via data source
+   - Use two_node_role: "primary"/"secondary" (Terraform naming)
+   - Set is_two_node_cluster = true
+
+3. Apply: profiles first, then clusters
+
+---
+
+### Phase 5: Monitor [Agent]
+
+Spawn monitor agent with this prompt:
+
+```
+You are monitoring cluster provisioning events.
+
+FIRST: READ the `spectrocloud-troubleshooting` skill completely.
+
+Tasks:
+1. Poll cluster events every 10 seconds (API pattern in skill)
+2. Filter noise vs actionable errors (tables in skill)
+3. Report actionable issues to main session
+4. Continue until cluster state = Running or explicit failure
+
+If you see errors not in the skill, write to ./learnings.md
+```
+
+---
 
 ### On Failure
-- `spectrocloud-troubleshooting` for event analysis
-- Pack not found → pagination issue
-- Profile validation → incomplete pack values
-- Cluster stuck → SSH to edge host, check stylus agent
 
-### Skill Improvement
-Spawn tracker agent to capture learnings → update skills at end
+READ `spectrocloud-troubleshooting` skill for:
+- Known error patterns
+- SSH debug commands
+- Event analysis
+
+Write discoveries to ./learnings.md
+
+---
+
+### Session End
+
+Review ./learnings.md with user.
+User decides what to merge into skills.
 ```
 
 ---
@@ -188,51 +243,47 @@ Spawn tracker agent to capture learnings → update skills at end
 ```
 ## Task: Deploy Agent Mode Edge Cluster
 
-### Context Strategy
-- Main session: Orchestrate, create profile/cluster
-- Monitor Agent: Event polling
-
-### Required Skills
+### Skills (READ THESE - they are globally available)
 - `spectrocloud-common` - Auth, pack discovery
-- `spectrocloud-agent-mode` - Installation steps
-- `spectrocloud-cluster-profiles` - BYOOS with "NA"
+- `spectrocloud-agent-mode` - Installation steps, requirements
+- `spectrocloud-cluster-profiles` - BYOOS with "NA" pattern
 - `spectrocloud-clusters` - Cluster creation
 - `spectrocloud-troubleshooting` - Event monitoring
 
-### Critical Rules
-1. Agent mode = 1 or 3+ nodes (NOT 2)
-2. BYOOS system.uri = "NA"
-3. Pack pagination at 50
+### Learnings
+Write issues to: ./learnings.md
 
-### Workflow
+---
 
-#### Phase 1: Setup [Main]
-- Auth, project lookup (skill: `common`)
-- Create edge token - NO ProjectUid (skill: `clusters`)
+### Phase 1: Setup [Main]
+READ `spectrocloud-common`, then:
+1. Get API key, look up project UID
+2. READ `spectrocloud-clusters` for token creation
+3. Create edge token (NO ProjectUid header)
 
-#### Phase 2: Install Agent [Main or Agent]
-- Install on target nodes (skill: `agent-mode`)
-- Wait for registration
+### Phase 2: Install [Main]
+READ `spectrocloud-agent-mode`, then:
+1. Install agent on target nodes (commands in skill)
+2. Wait for registration in Palette
 
-#### Phase 3: Deploy [Main]
-- Create profile with BYOOS "NA" (skill: `cluster-profiles`)
-- Create cluster (skill: `clusters`)
+### Phase 3: Deploy [Main]
+READ `spectrocloud-cluster-profiles`, then:
+1. Create profile with BYOOS system.uri: "NA"
+2. Create cluster
 
-#### Phase 4: Monitor [Agent]
-- Event polling (skill: `troubleshooting`)
+### Phase 4: Monitor [Agent]
+Spawn agent: "READ `spectrocloud-troubleshooting`. Poll events until Running."
 
 ### On Failure
-- See `spectrocloud-troubleshooting`
+Check ./learnings.md, then troubleshooting skill.
 ```
 
 ---
 
-## Adding New Prompts
+## Key Points
 
-1. **Draft** following template
-2. **Run critic checklist** - ALL boxes must check
-3. **Refine** until critic passes
-4. **Test** the prompt
-5. **Capture learnings** back to skills (not prompts)
-
-**Prompts reference skills. Skills contain knowledge.**
+1. **Skills are global** - No paths needed, just READ them
+2. **Agents must READ explicitly** - "READ the skill" not "use the skill"
+3. **Learnings stay local** - ./learnings.md in working directory
+4. **User reviews learnings** - Decides what merges to skills
+5. **Don't improvise** - If it's not in a skill, document it, don't guess
