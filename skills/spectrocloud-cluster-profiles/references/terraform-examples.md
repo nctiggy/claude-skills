@@ -1,5 +1,118 @@
 # Terraform Examples for Cluster Profiles
 
+## Standalone Profiles Module
+
+**Use this structure** so profiles can be managed independently from clusters.
+
+```hcl
+# profiles/main.tf - Complete standalone profile module
+
+terraform {
+  required_providers {
+    spectrocloud = {
+      source  = "spectrocloud/spectrocloud"
+      version = ">= 0.26.0"
+    }
+  }
+}
+
+provider "spectrocloud" {
+  host         = var.palette_host
+  api_key      = var.palette_api_key
+  project_name = var.project_name
+}
+
+variable "palette_host" {
+  default = "api.spectrocloud.com"
+}
+variable "palette_api_key" {
+  sensitive = true
+}
+variable "project_name" {
+  description = "Palette project name"
+}
+
+# --- Data Sources ---
+data "spectrocloud_registry" "public_repo" {
+  name = "Public Repo"
+}
+
+data "spectrocloud_pack" "byoos" {
+  name         = "edge-native-byoi"
+  version      = "2.0.0"
+  registry_uid = data.spectrocloud_registry.public_repo.id
+}
+
+data "spectrocloud_pack" "k3s" {
+  name         = "edge-k3s"
+  version      = "1.33.3"
+  registry_uid = data.spectrocloud_registry.public_repo.id
+}
+
+data "spectrocloud_pack" "calico" {
+  name         = "cni-calico"
+  version      = "3.28.2"
+  registry_uid = data.spectrocloud_registry.public_repo.id
+}
+
+# --- Infrastructure Profile ---
+resource "spectrocloud_cluster_profile" "edge_infra" {
+  name    = "demo-edge-infra"
+  type    = "cluster"
+  cloud   = "edge-native"
+  version = "1.0.0"
+
+  pack {
+    name         = data.spectrocloud_pack.byoos.name
+    tag          = data.spectrocloud_pack.byoos.version
+    uid          = data.spectrocloud_pack.byoos.id
+    registry_uid = data.spectrocloud_registry.public_repo.id
+    type         = "spectro"
+    values       = file("${path.module}/pack-values/byoos.yaml")
+  }
+
+  pack {
+    name         = data.spectrocloud_pack.k3s.name
+    tag          = data.spectrocloud_pack.k3s.version
+    uid          = data.spectrocloud_pack.k3s.id
+    registry_uid = data.spectrocloud_registry.public_repo.id
+    type         = "spectro"
+    values       = file("${path.module}/pack-values/k3s.yaml")
+  }
+
+  pack {
+    name         = data.spectrocloud_pack.calico.name
+    tag          = data.spectrocloud_pack.calico.version
+    uid          = data.spectrocloud_pack.calico.id
+    registry_uid = data.spectrocloud_registry.public_repo.id
+    type         = "spectro"
+    values       = file("${path.module}/pack-values/calico.yaml")
+  }
+}
+
+# --- Outputs for clusters module ---
+output "infra_profile_id" {
+  value = spectrocloud_cluster_profile.edge_infra.id
+}
+
+output "infra_profile_name" {
+  value = spectrocloud_cluster_profile.edge_infra.name
+}
+```
+
+**Directory structure:**
+```
+profiles/
+├── main.tf
+├── terraform.tfvars
+└── pack-values/
+    ├── byoos.yaml      # Complete pack values from API
+    ├── k3s.yaml
+    └── calico.yaml
+```
+
+---
+
 ## Registry Data Sources
 
 ```hcl

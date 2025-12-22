@@ -234,6 +234,48 @@ palette_api_key = "your-api-key"
 # export TF_VAR_palette_api_key=$(op read "op://k8s vault/palette-api-key/credential")
 ```
 
+### Modular Structure (Recommended)
+
+**Separate profiles from clusters** for independent lifecycle management:
+
+```
+palette-demo/
+├── shared/
+│   └── providers.tf      # Shared provider config (symlinked)
+├── profiles/
+│   ├── providers.tf -> ../shared/providers.tf
+│   ├── main.tf           # Cluster profiles only
+│   ├── variables.tf
+│   └── terraform.tfvars
+└── clusters/
+    ├── providers.tf -> ../shared/providers.tf
+    ├── main.tf           # Clusters only (uses data sources for profiles)
+    ├── variables.tf
+    └── terraform.tfvars
+```
+
+**Benefits:**
+- Delete cluster without affecting profiles: `cd clusters && terraform destroy`
+- Update profiles independently: `cd profiles && terraform apply`
+- Demo profile versioning without cluster changes
+- Cleaner state management
+
+**Workflow:**
+```bash
+# 1. Create profiles first
+cd profiles && terraform init && terraform apply
+
+# 2. Create clusters (references profiles via data sources)
+cd ../clusters && terraform init && terraform apply
+
+# 3. Demo: Delete just the cluster
+cd clusters && terraform destroy
+
+# 4. Demo: Update profile, then update cluster
+cd profiles && terraform apply  # Creates new version
+cd ../clusters && terraform apply  # Updates to new version
+```
+
 ### Project Lookup
 ```hcl
 data "spectrocloud_project" "this" {

@@ -1,5 +1,117 @@
 # Terraform Examples for Edge Clusters
 
+## Standalone Clusters Module
+
+**Use this structure** so clusters can be managed independently from profiles.
+Profiles are referenced via data sources (created in separate `profiles/` module).
+
+```hcl
+# clusters/main.tf - Complete standalone cluster module
+
+terraform {
+  required_providers {
+    spectrocloud = {
+      source  = "spectrocloud/spectrocloud"
+      version = ">= 0.26.0"
+    }
+  }
+}
+
+provider "spectrocloud" {
+  host         = var.palette_host
+  api_key      = var.palette_api_key
+  project_name = var.project_name
+}
+
+variable "palette_host" {
+  default = "api.spectrocloud.com"
+}
+variable "palette_api_key" {
+  sensitive = true
+}
+variable "project_name" {}
+variable "ssh_public_key" {}
+variable "cluster_vip" {}
+variable "infra_profile_name" {
+  description = "Name of infrastructure profile (created in profiles/ module)"
+}
+
+# --- Reference profiles created in separate module ---
+data "spectrocloud_cluster_profile" "infra" {
+  name    = var.infra_profile_name
+  context = "project"
+}
+
+# --- Reference registered edge hosts ---
+data "spectrocloud_appliance" "node1" {
+  name = "edge-node-01"
+}
+
+data "spectrocloud_appliance" "node2" {
+  name = "edge-node-02"
+}
+
+# --- Create cluster ---
+resource "spectrocloud_cluster_edge_native" "cluster" {
+  name    = "demo-2node-cluster"
+  context = "project"
+
+  cluster_profile {
+    id = data.spectrocloud_cluster_profile.infra.id
+  }
+
+  cloud_config {
+    ssh_keys            = [var.ssh_public_key]
+    vip                 = var.cluster_vip
+    ntp_servers         = ["time.google.com"]
+    is_two_node_cluster = true
+  }
+
+  machine_pool {
+    name                    = "control-plane-pool"
+    control_plane           = true
+    control_plane_as_worker = true
+
+    edge_host {
+      host_uid      = data.spectrocloud_appliance.node1.id
+      two_node_role = "primary"
+    }
+    edge_host {
+      host_uid      = data.spectrocloud_appliance.node2.id
+      two_node_role = "secondary"
+    }
+  }
+}
+
+output "cluster_id" {
+  value = spectrocloud_cluster_edge_native.cluster.id
+}
+```
+
+**terraform.tfvars:**
+```hcl
+project_name       = "Default"
+infra_profile_name = "demo-edge-infra"  # Must exist (from profiles/ module)
+ssh_public_key     = "ssh-rsa AAAA..."
+cluster_vip        = "192.168.1.100"
+```
+
+**Independent lifecycle:**
+```bash
+# Destroy cluster only (profiles remain)
+cd clusters && terraform destroy
+
+# Recreate cluster
+cd clusters && terraform apply
+
+# Update to new profile version
+# 1. Update profiles/main.tf with new version
+# 2. cd profiles && terraform apply
+# 3. cd ../clusters && terraform apply  # Picks up new version
+```
+
+---
+
 ## Basic Single-Node Cluster
 
 ```hcl
