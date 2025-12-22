@@ -69,24 +69,40 @@ curl -s -X POST "https://api.spectrocloud.com/v1/spectroclusters/edge-native?Pro
 ```
 
 ### 2-Node HA Configuration
+
+**Correct API structure** (differs from standard cluster):
 ```json
-"cloudConfig": {
-  "sshKeys": ["..."],
-  "vip": "192.168.1.100",
-  "ntpServers": ["time.google.com"],
-  "isTwoNodeCluster": true
-},
-"machinePools": [{
-  "name": "control-plane-pool",
-  "size": 2,
-  "controlPlane": true,
-  "poolConfig": {"useControlPlaneAsWorker": true},
-  "edgeHosts": [
-    {"hostUid": "<node1>", "twoNodeCandidatePriority": "primary"},
-    {"hostUid": "<node2>", "twoNodeCandidatePriority": "secondary"}
-  ]
-}]
+{
+  "spec": {
+    "cloudConfig": {
+      "isTwoNodeCluster": true,
+      "sshKeys": ["ssh-rsa ..."],
+      "vip": "192.168.1.100",
+      "ntpServers": ["time.google.com"]
+    },
+    "machinePoolConfig": [{
+      "cloudConfig": {
+        "edgeHosts": [
+          {"hostUid": "<node1-uid>", "twoNodeCandidatePriority": "primary"},
+          {"hostUid": "<node2-uid>", "twoNodeCandidatePriority": "secondary"}
+        ]
+      },
+      "poolConfig": {
+        "name": "control-plane-pool",
+        "size": 2,
+        "isControlPlane": true,
+        "useControlPlaneAsWorker": true
+      }
+    }]
+  }
+}
 ```
+
+**Key 2-node fields:**
+- `isTwoNodeCluster: true` in `cloudConfig` (not at spec level)
+- `twoNodeCandidatePriority`: `"primary"` or `"secondary"` per host
+- `useControlPlaneAsWorker: true` to run workloads on both nodes
+- Uses `machinePoolConfig` (not `machinePools`) with nested `cloudConfig`/`poolConfig`
 
 ## API: Other Operations
 

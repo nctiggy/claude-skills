@@ -37,28 +37,54 @@ Distributed storage for edge using LINSTOR/DRBD.
 **Registry**: Check with discovery (often Palette Community Registry)
 **Type**: `oci`
 
-**Key configuration points:**
-```yaml
-# In pack values, ensure:
-operator:
-  replicas: 1  # For single-node, increase for HA
+**Critical configuration** (all of these are needed):
 
-# Storage pool configuration depends on available disks
-# Check node storage before deploying:
-# lsblk -d -o NAME,SIZE,TYPE,MOUNTPOINT
+```yaml
+charts:
+  piraeus:
+    # 1. Service name length limit (63 chars) - pack name creates resources too long
+    fullnameOverride: "piraeus"
+  linstor-gui:
+    fullnameOverride: "linstor-gui"
+
+  # 2. DRBD module loader fails on HWE kernels (Ubuntu 22.04 with 6.8.x kernel)
+  linstorSatelliteConfigurations:
+    - name: disable-drbd-loader
+      spec:
+        podTemplate:
+          spec:
+            initContainers:
+              - name: drbd-module-loader
+                $patch: delete
+    # 3. File-based storage pool (default path works, don't override unless needed)
+    - name: file-thin-storage-pool
+      spec:
+        storagePools:
+          - name: file-pool
+            fileThinPool:
+              directory: /var/lib/piraeus-pools
+
+  # 4. Storage without DRBD - must use STORAGE layer only (no replication)
+  storageClasses:
+    - name: piraeus-storage
+      parameters:
+        placementCount: "1"
+        storagePool: "file-pool"
+        layerList: "STORAGE"  # Critical when DRBD disabled
 ```
 
 **Gotchas:**
-- Requires available block devices (not mounted)
+- **Name too long**: Without `fullnameOverride`, resources exceed 63-char K8s limit
+- **HWE kernel**: Ubuntu 22.04 HWE kernel (6.8.x) has no pre-built DRBD modules - must disable loader
+- **No DRBD = no replication**: When DRBD disabled, use `layerList: "STORAGE"` only
+- **File pool sizing**: Uses root partition space - 100GB VM disk leaves only ~2.5GB after OS install
 - On MS-01 nodes: use the 1-2TB secondary drive, not the 500GB OS drive
-- Node labels may be required for scheduling
-- DRBD kernel module must be loadable
 
 **Post-deploy verification:**
 ```bash
 kubectl get pods -n piraeus
 kubectl get storageclasses
-# Should see piraeus-* storage classes
+kubectl get linstorsatellites  # Check nodes joined
 ```
 
 ---
@@ -220,6 +246,34 @@ spec:
 
 ---
 
+## Database Packs
+
+### MongoDB (Bitnami)
+
+**Pack name**: `mongodb`
+**Registry**: Bitnami
+**Type**: `helm`
+
+**Gotchas:**
+
+1. **Image tags expire**: Bitnami removes old image tags (e.g., `4.4.24-debian-11-r9`). Options:
+   - Use official `mongo:4.4` image (requires changing volumeMount from `/bitnami/mongodb` to `/data/db`)
+   - Check current available tags before deployment: `docker pull bitnami/mongodb:<tag>`
+
+2. **Standalone vs ReplicaSet**: For single-node MongoDB:
+```yaml
+architecture: standalone  # Creates Deployment, not StatefulSet
+persistence:
+  enabled: true
+  size: 8Gi
+```
+
+3. **Volume mount path differs by image**:
+   - Bitnami image: `/bitnami/mongodb`
+   - Official mongo image: `/data/db`
+
+---
+
 ## Application Packs
 
 ### Hello Universe
@@ -276,6 +330,7 @@ controller:
 | `longhorn` | Public Repo | `spectro` | addon |
 | `nginx` | Public Repo | `spectro` | addon |
 | `harbor` | Bitnami | `helm` | addon |
+| `mongodb` | Bitnami | `helm` | addon |
 
 ## Adding New Pack Learnings
 

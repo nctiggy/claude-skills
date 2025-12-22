@@ -193,9 +193,28 @@ ssh root@172.18.0.4 "rm /var/lib/vz/template/iso/palette-edge-OLD*.iso"
 ```
 
 ### VM Creation
-1. Create VM: 4+ CPU, 8GB+ RAM, 100GB+ disk
+
+**Sizing considerations:**
+| Use Case | Disk Size | Notes |
+|----------|-----------|-------|
+| Basic edge | 100GB | ~2.5GB free after OS for storage pools |
+| With Piraeus file pool | 200GB+ | File pools use root partition space |
+| With separate data disk | 100GB + data disk | Attach second disk for storage pool |
+
+**Boot order is critical:**
+```
+# Proxmox boot order format:
+boot: order=scsi0;ide2;net0
+```
+- Disk first (`scsi0`), then CD-ROM (`ide2`)
+- Empty disk falls through to CD on first boot
+- After install, boots from disk (avoids reinstall loop)
+- **Wrong order** = reinstall loop or hang
+
+**VM creation steps:**
+1. Create VM: 4+ CPU, 8GB+ RAM, disk sized for use case
 2. Attach the **versioned** ISO (verify name before attaching)
-3. Set boot order: disk first, then CD-ROM
+3. Set boot order: `order=scsi0;ide2;net0`
 4. Boot - installation is automatic
 5. Verify in Palette: Clusters > Edge Hosts > Registered
 
@@ -209,10 +228,12 @@ See `references/cicd-workflow.md` for GitHub Actions and GitLab CI examples.
 |-------|----------|
 | Registry errors | Verify `docker login`, ttl.sh needs no login but expires in 24h |
 | ISO boot hangs | Check UEFI/BIOS mode, EFI partition size |
+| Reinstall loop | Boot order wrong - must be disk first, then CD-ROM |
 | Not registering | Check user-data, network, logs: `journalctl -u spectro-stylus-agent.service -f` |
 | Re-imaging | Delete old edge host from Palette first |
 | Wrong K8s version | Verify ISO name matches expected build, check for stale ISOs |
 | Stale ISO used | List ISOs on hypervisor, delete old ones, re-upload versioned ISO |
+| Storage pool too small | 100GB disk leaves ~2.5GB free - increase disk or add data disk |
 
 ## Quick Reference
 
@@ -222,6 +243,7 @@ See `references/cicd-workflow.md` for GitHub Actions and GitLab CI examples.
 | ISO output | `build/palette-edge-installer.iso` (rename with version!) |
 | Versioned ISO | `palette-edge-<K8S_VERSION>-<YYYYMMDD-HHMM>.iso` |
 | Image tag | `<K8S_DIST>-<K8S_VERSION>-<CUSTOM_TAG>` |
+| Proxmox boot order | `boot: order=scsi0;ide2;net0` |
 | SSH access | kairos / kairos |
 
 ## Additional Resources

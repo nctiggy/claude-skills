@@ -80,35 +80,47 @@ curl -s -X POST "https://api.spectrocloud.com/v1/spectroclusters/edge-native?Pro
 ## 2-Node HA Cluster
 
 ```bash
-# Key 2-node fields:
-# - isTwoNodeCluster: true in cloudConfig
-# - twoNodeCandidatePriority: "primary"/"secondary" per edge host
-# - useControlPlaneAsWorker: true in poolConfig
-"spec": {
-  "cloudType": "edge-native",
-  "profiles": [{"uid": "<2node-profile-uid>"}],
-  "cloudConfig": {
-    "sshKeys": ["ssh-rsa AAAA..."],
-    "vip": "192.168.1.100",
-    "ntpServers": ["time.google.com"],
-    "isTwoNodeCluster": true
-  },
-  "machinePools": [
-    {
-      "name": "control-plane-pool",
-      "size": 2,
-      "controlPlane": true,
-      "poolConfig": {
-        "useControlPlaneAsWorker": true
+# 2-node uses different structure than standard clusters:
+# - machinePoolConfig (not machinePools)
+# - Nested cloudConfig/poolConfig structure
+curl -s -X POST "https://api.spectrocloud.com/v1/spectroclusters/edge-native?ProjectUid=$PROJECT_UID" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {"name": "my-2node-cluster"},
+    "spec": {
+      "cloudType": "edge-native",
+      "profiles": [{"uid": "<2node-profile-uid>"}],
+      "cloudConfig": {
+        "isTwoNodeCluster": true,
+        "sshKeys": ["ssh-rsa AAAA..."],
+        "vip": "192.168.1.100",
+        "ntpServers": ["time.google.com"]
       },
-      "edgeHosts": [
-        {"hostUid": "<node1-uid>", "twoNodeCandidatePriority": "primary"},
-        {"hostUid": "<node2-uid>", "twoNodeCandidatePriority": "secondary"}
-      ]
+      "machinePoolConfig": [{
+        "cloudConfig": {
+          "edgeHosts": [
+            {"hostUid": "<node1-uid>", "twoNodeCandidatePriority": "primary"},
+            {"hostUid": "<node2-uid>", "twoNodeCandidatePriority": "secondary"}
+          ]
+        },
+        "poolConfig": {
+          "name": "control-plane-pool",
+          "size": 2,
+          "isControlPlane": true,
+          "useControlPlaneAsWorker": true
+        }
+      }]
     }
-  ]
-}
+  }'
 ```
+
+**Key 2-node differences:**
+- `isTwoNodeCluster: true` in cloudConfig (not spec level)
+- `machinePoolConfig` array (not `machinePools`)
+- Each pool has nested `cloudConfig` (with edgeHosts) and `poolConfig` (with pool settings)
+- `twoNodeCandidatePriority`: `"primary"` or `"secondary"` per host
+- `useControlPlaneAsWorker: true` required for workloads
 
 ## Get Cluster
 
