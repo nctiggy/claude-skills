@@ -133,7 +133,7 @@ curl -s "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID" \
 
 ### UPDATE: Create New Version
 ```bash
-# Updates create a NEW profile UID with the same name but different version
+# Same profile name + different version = NEW UID (both appear in UI with version dropdown)
 curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
   -H "ApiKey: $PALETTE_API_KEY" \
   -H "ProjectUid: $PROJECT_UID" \
@@ -145,7 +145,6 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
       "template": { ... }
     }
   }'
-# Returns new UID - old version still exists
 ```
 
 ### DELETE: Remove Profile
@@ -185,10 +184,15 @@ curl -s "https://api.spectrocloud.com/v1/packs?limit=100&filters=metadata.name=P
 
 **Rules:**
 1. Filter out disabled packs (`disabled != true`)
-2. Sort by semantic version, not string (`3.13.0 > 3.9.0`)
+2. Sort by semantic version (`3.13.0 > 3.9.0`)
 3. Prefer "Public Repo" registry when pack exists in multiple
-4. If user says "OPA" or "metallb" without version → use latest
-5. Only use specific version if explicitly requested
+4. Use latest unless user explicitly requests a version
+
+**Pre-flight validation:**
+```bash
+curl -s "https://api.spectrocloud.com/v1/packs/PACK_UID" -H "ApiKey: $PALETTE_API_KEY" | \
+  jq '{name: .name, disabled: .status.disabled, registryUid: .registryUid}'
+```
 
 ---
 
@@ -200,22 +204,17 @@ curl -s "https://api.spectrocloud.com/v1/packs?limit=100&filters=metadata.name=P
 
 | Registry Type | Pack `type` Value |
 |---------------|-------------------|
-| Pack registry (Public Repo, etc.) | `spectro` |
-| Helm registry (Bitnami, custom) | `helm` |
+| Pack registry (Public Repo) | `spectro` |
+| Helm registry (Bitnami) | `helm` |
+| OCI registry (Palette Registry) | `oci` |
 | Manifest (inline) | `manifest` |
 
-```hcl
-# WRONG - nginx is from pack registry, not helm registry
-pack {
-  name = "nginx"
-  type = "helm"  # Error: PackType 'helm' is not matching with registry type 'pack'
-}
-
-# CORRECT - pack registry = spectro type
-pack {
-  name = "nginx"
-  type = "spectro"
-}
+**Detect registry type before creating profile:**
+```bash
+# Check if pack's registry is in pack registries (→ spectro) or not (→ oci)
+curl -s "https://api.spectrocloud.com/v1/registries/pack?limit=50" -H "ApiKey: $PALETTE_API_KEY" | \
+  jq '[.items[].metadata.uid]'
+# If pack's registryUid is NOT in this list → use type: "oci"
 ```
 
 ### Pack Naming
@@ -225,9 +224,9 @@ Pack names aren't always obvious. Common mappings:
 | Search Term | Pack Name | Registry | Type |
 |-------------|-----------|----------|------|
 | metallb | `lb-metallb-helm` | Public Repo | `spectro` |
-| nginx | `nginx` | Public Repo | `spectro` |
-| nginx-ingress | `nginx` | Public Repo | `spectro` |
-| hello-universe | `hello-universe` | Palette Registry | `spectro` |
+| nginx/ingress | `nginx` | Public Repo | `spectro` |
+| opa/gatekeeper | `open-policy-agent` | Public Repo | `spectro` |
+| hello-universe | `hello-universe` | Palette Registry | `oci` |
 | calico | `cni-calico` | Public Repo | `spectro` |
 | cilium | `cni-cilium-oss` | Public Repo | `spectro` |
 | harbor | `harbor` | Bitnami | `helm` |
