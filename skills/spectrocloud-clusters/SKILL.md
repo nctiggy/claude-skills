@@ -373,12 +373,16 @@ cluster_profile {
 ## Cluster Lifecycle
 
 ### Update Cluster Profile
+
+**Workflow**: To update a deployed cluster's profile, first create a new profile version (same name, bumped version) using `spectrocloud-cluster-profiles` skill, then update the cluster to use it:
+
 ```bash
+# Use the NEW profile version's UID (from creating the new version)
 curl -s -X PUT "https://api.spectrocloud.com/v1/spectroclusters/$CLUSTER_UID/profiles" \
   -H "ApiKey: $PALETTE_API_KEY" \
   -H "ProjectUid: $PROJECT_UID" \
   -H "Content-Type: application/json" \
-  -d '{"profiles": [{"uid": "<new-profile-uid>"}]}'
+  -d '{"profiles": [{"uid": "<new-profile-version-uid>"}]}'
 ```
 
 ### Add Edge Host to Existing Cluster

@@ -147,6 +147,11 @@ curl -s "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID" \
 ```
 
 ### UPDATE: Create New Version
+
+**To update a profile deployed to a cluster:**
+1. Create a new version (same name, bumped version)
+2. Update cluster to use new version (see `spectrocloud-clusters` skill)
+
 ```bash
 # Same profile name + different version = NEW UID (both appear in UI with version dropdown)
 curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
@@ -160,6 +165,7 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
       "template": { ... }
     }
   }'
+# Returns new UID - use this to update clusters
 ```
 
 ### DELETE: Remove Profile
@@ -449,13 +455,7 @@ Same name + different version = separate resources. Use `depends_on` between ver
 
 ## Profile Variables
 
-Use variables for cluster-specific values:
-```yaml
-cluster-cidr: '{{ .spectro.var.K8sPodCIDR }}'
-service-cidr: '{{ .spectro.var.K8sServiceCIDR }}'
-```
-
-**Default CIDRs**: Pod `100.64.0.0/18`, Service `100.64.64.0/18`
+Use variables for cluster-specific values: `{{ .spectro.var.K8sPodCIDR }}`, `{{ .spectro.var.K8sServiceCIDR }}`
 
 ---
 
