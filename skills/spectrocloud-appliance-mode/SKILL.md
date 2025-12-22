@@ -95,6 +95,26 @@ earthly +iso
 # Output: build/palette-edge-installer.iso
 ```
 
+### Step 4: Version the ISO
+
+**Critical**: The default ISO name has no version info. Rename it before uploading:
+
+```bash
+# Create versioned ISO name with date and K8s version
+ISO_NAME="palette-edge-$(grep K8S_VERSION .arg | cut -d= -f2)-$(date +%Y%m%d-%H%M).iso"
+mv build/palette-edge-installer.iso "build/$ISO_NAME"
+echo "Built: $ISO_NAME"
+```
+
+**Before imaging any VM**, verify you're using the correct ISO:
+```bash
+# Check ISO build date (should match your recent build)
+ls -la build/*.iso
+
+# If uploading to Proxmox, include version in the storage name
+# e.g., "palette-edge-k3s-1.30.5-20241222-1430.iso"
+```
+
 ## 2-Node Deployment
 
 2-node HA uses Postgres + Kine backend. **Appliance-mode only.**
@@ -153,8 +173,28 @@ earthly +iso
 
 ## Deploy
 
-1. Upload ISO to hypervisor
-2. Create VM: 4+ CPU, 8GB+ RAM, 100GB+ disk
+### Pre-Deploy Checklist
+- [ ] ISO name includes version/date (not generic `palette-edge-installer.iso`)
+- [ ] Provider image tag matches ISO build (check `.arg` used)
+- [ ] Old ISOs cleaned up from hypervisor storage
+- [ ] Old edge hosts deleted from Palette (prevents duplicate ID errors)
+
+### Proxmox Upload
+```bash
+# Upload versioned ISO to Proxmox
+ISO_PATH="/path/to/palette-edge-k3s-1.30.5-20241222.iso"
+scp "$ISO_PATH" root@172.18.0.4:/var/lib/vz/template/iso/
+
+# List ISOs on Proxmox to verify and clean up old ones
+ssh root@172.18.0.4 "ls -la /var/lib/vz/template/iso/palette-*.iso"
+
+# Remove stale ISOs (keep only latest)
+ssh root@172.18.0.4 "rm /var/lib/vz/template/iso/palette-edge-OLD*.iso"
+```
+
+### VM Creation
+1. Create VM: 4+ CPU, 8GB+ RAM, 100GB+ disk
+2. Attach the **versioned** ISO (verify name before attaching)
 3. Set boot order: disk first, then CD-ROM
 4. Boot - installation is automatic
 5. Verify in Palette: Clusters > Edge Hosts > Registered
@@ -171,13 +211,16 @@ See `references/cicd-workflow.md` for GitHub Actions and GitLab CI examples.
 | ISO boot hangs | Check UEFI/BIOS mode, EFI partition size |
 | Not registering | Check user-data, network, logs: `journalctl -u spectro-stylus-agent.service -f` |
 | Re-imaging | Delete old edge host from Palette first |
+| Wrong K8s version | Verify ISO name matches expected build, check for stale ISOs |
+| Stale ISO used | List ISOs on hypervisor, delete old ones, re-upload versioned ISO |
 
 ## Quick Reference
 
 | Item | Value |
 |------|-------|
 | CanvOS | `https://github.com/spectrocloud/CanvOS` |
-| ISO output | `build/palette-edge-installer.iso` |
+| ISO output | `build/palette-edge-installer.iso` (rename with version!) |
+| Versioned ISO | `palette-edge-<K8S_VERSION>-<YYYYMMDD-HHMM>.iso` |
 | Image tag | `<K8S_DIST>-<K8S_VERSION>-<CUSTOM_TAG>` |
 | SSH access | kairos / kairos |
 
