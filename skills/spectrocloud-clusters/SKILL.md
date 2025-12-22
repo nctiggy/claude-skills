@@ -12,15 +12,25 @@ Deploy and manage Kubernetes clusters on edge infrastructure using Palette.
 **Ask the user:**
 1. Project name? (use `spectrocloud-common` skill to look up UID)
 2. Cluster name?
-3. Which cluster profile? (must exist - use `spectrocloud-cluster-profiles` skill if needed)
-4. Edge host UIDs? (must be registered in Palette)
-5. Deployment mode? (agent mode, appliance mode, or 2-node HA)
+3. Infrastructure profile? (must exist - use `spectrocloud-cluster-profiles` skill)
+4. Add-on profile(s)? (optional - applications to deploy)
+5. Edge host UIDs? (must be registered in Palette)
+6. Deployment mode? (agent mode, appliance mode, or 2-node HA)
+7. Network mode?
+   - **VIP** (default): Requires a static IP address for the virtual IP
+   - **Overlay**: Uses `overlayNetworkConfiguration` instead of VIP
+8. If VIP: What IP address?
+9. SSH public key(s)? (for node access)
+10. NTP server(s)? (e.g., `time.google.com`, `pool.ntp.org`)
+
+**Best Practice**: Use separate infrastructure + add-on profiles rather than one combined profile. This allows reusing infra across clusters.
 
 **Prerequisites:**
 - Edge hosts registered in Palette
-- Cluster profile created with appropriate layers
-- VIP address for multi-node clusters
-- NTP servers configured for multi-node clusters
+- Infrastructure profile with OS, K8s, CNI layers
+- Add-on profile(s) for applications (optional)
+- VIP address OR overlay network configured
+- NTP servers for time sync (critical for multi-node)
 
 ---
 
@@ -53,7 +63,8 @@ curl -s -X POST "https://api.spectrocloud.com/v1/spectroclusters/edge-native?Pro
     "spec": {
       "cloudType": "edge-native",
       "profiles": [
-        {"uid": "<cluster-profile-uid>"}
+        {"uid": "<infra-profile-uid>"},
+        {"uid": "<addon-profile-uid>"}
       ],
       "cloudConfig": {
         "sshKeys": ["ssh-rsa AAAA..."],
@@ -74,6 +85,18 @@ curl -s -X POST "https://api.spectrocloud.com/v1/spectroclusters/edge-native?Pro
     }
   }'
 # Returns: {"uid": "cluster-uid"}
+```
+
+### Overlay Network (instead of VIP)
+```bash
+# Use overlayNetworkConfiguration instead of vip for overlay mode
+"cloudConfig": {
+  "sshKeys": ["ssh-rsa AAAA..."],
+  "ntpServers": ["time.google.com"],
+  "overlayNetworkConfiguration": {
+    "enable": true
+  }
+}
 ```
 
 ### Multi-Node Cluster (3 control plane + workers)
@@ -186,13 +209,18 @@ resource "spectrocloud_cluster_edge_native" "cluster" {
   name    = "my-edge-cluster"
   context = "project"
 
+  # Infrastructure profile
   cluster_profile {
-    id = data.spectrocloud_cluster_profile.edge_profile.id
+    id = data.spectrocloud_cluster_profile.infra.id
+  }
+  # Add-on profile (optional)
+  cluster_profile {
+    id = data.spectrocloud_cluster_profile.addon.id
   }
 
   cloud_config {
     ssh_keys    = [var.ssh_public_key]
-    vip         = var.cluster_vip
+    vip         = var.cluster_vip  # OR use overlay_cidr_range
     ntp_servers = ["time.google.com"]
   }
 
@@ -207,13 +235,27 @@ resource "spectrocloud_cluster_edge_native" "cluster" {
   }
 }
 
-data "spectrocloud_cluster_profile" "edge_profile" {
-  name    = "my-edge-profile"
+data "spectrocloud_cluster_profile" "infra" {
+  name    = "my-edge-infra"
+  context = "project"
+}
+
+data "spectrocloud_cluster_profile" "addon" {
+  name    = "my-edge-addon"
   context = "project"
 }
 
 data "spectrocloud_appliance" "edge_host" {
   name = "edge-host-01"
+}
+```
+
+### Terraform: Overlay Network (instead of VIP)
+```hcl
+cloud_config {
+  ssh_keys       = [var.ssh_public_key]
+  ntp_servers    = ["time.google.com"]
+  overlay_cidr_range = "100.64.192.0/24"  # Use instead of vip
 }
 ```
 

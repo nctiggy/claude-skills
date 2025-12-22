@@ -14,6 +14,17 @@ Cluster profiles define the software stack deployed on clusters.
 | Infrastructure | `cluster` | OS, K8s, CNI, CSI layers |
 | Add-on | `add-on` | Application packs only |
 
+**Best Practice**: Create separate infrastructure and add-on profiles rather than one combined profile. This allows reusing the infra profile across clusters while customizing add-ons per deployment.
+
+## Application Deployment Priority
+
+When adding applications to a profile, search in this order:
+1. **Pack** (preferred) - Search `Public Repo` registry first
+2. **Helm** - Search `Bitnami` or other helm registries
+3. **Manifest** - Use only when no pack/helm exists
+
+Packs have better Palette integration (updates, drift detection). Use manifests as a last resort.
+
 ## Before Creating Profiles
 
 **Ask the user:**
@@ -420,22 +431,7 @@ provider "spectrocloud" {
 
 ### Terraform: Profile Versioning
 
-Same profile name with different versions creates separate resources. Use `depends_on`:
-
-```hcl
-resource "spectrocloud_cluster_profile" "v1" {
-  name    = "my-profile"
-  version = "1.0.0"
-  # ... packs
-}
-
-resource "spectrocloud_cluster_profile" "v2" {
-  name       = "my-profile"
-  version    = "2.0.0"
-  depends_on = [spectrocloud_cluster_profile.v1]
-  # ... updated packs
-}
-```
+Same name + different version = separate resources. Use `depends_on` between versions.
 
 ---
 
