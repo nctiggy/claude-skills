@@ -202,19 +202,18 @@ curl -s "https://api.spectrocloud.com/v1/packs/PACK_UID" -H "ApiKey: $PALETTE_AP
 
 **Critical rule**: The pack type is determined by the **registry type**, not pack contents.
 
-| Registry Type | Pack `type` Value |
+| Registry Name | Pack `type` Value |
 |---------------|-------------------|
-| Pack registry (Public Repo) | `spectro` |
-| Helm registry (Bitnami) | `helm` |
-| OCI registry (Palette Registry) | `oci` |
-| Manifest (inline) | `manifest` |
+| Public Repo | `spectro` |
+| Bitnami | `helm` |
+| Palette Community Registry | `oci` |
 
-**Detect registry type before creating profile:**
+**Mismatch causes**: `PackType 'pack' is not matching with registry type 'oci'`
+
+**Discover registries:**
 ```bash
-# Check if pack's registry is in pack registries (→ spectro) or not (→ oci)
-curl -s "https://api.spectrocloud.com/v1/registries/pack?limit=50" -H "ApiKey: $PALETTE_API_KEY" | \
-  jq '[.items[].metadata.uid]'
-# If pack's registryUid is NOT in this list → use type: "oci"
+curl -s "https://api.spectrocloud.com/v1/registries/metadata" -H "ApiKey: $PALETTE_API_KEY" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, kind: .kind}]'
 ```
 
 ### Pack Naming
@@ -226,7 +225,7 @@ Pack names aren't always obvious. Common mappings:
 | metallb | `lb-metallb-helm` | Public Repo | `spectro` |
 | nginx/ingress | `nginx` | Public Repo | `spectro` |
 | opa/gatekeeper | `open-policy-agent` | Public Repo | `spectro` |
-| hello-universe | `hello-universe` | Palette Registry | `oci` |
+| hello-universe | `hello-universe` | Palette Community Registry | `oci` |
 | calico | `cni-calico` | Public Repo | `spectro` |
 | cilium | `cni-cilium-oss` | Public Repo | `spectro` |
 | harbor | `harbor` | Bitnami | `helm` |
@@ -391,15 +390,21 @@ resource "spectrocloud_cluster_profile" "helm-addon" {
 }
 ```
 
-### Terraform: Pack with Auto-Discovery
-
-If a pack isn't found with a specific registry, **omit `registry_uid`**:
+### Terraform: Registry Data Sources
 
 ```hcl
-# Provider auto-discovers the correct registry
+data "spectrocloud_registry" "public_repo" {
+  name = "Public Repo"
+}
+
+data "spectrocloud_registry" "palette_community" {
+  name = "Palette Community Registry"
+}
+
 data "spectrocloud_pack" "hello_universe" {
-  name    = "hello-universe"
-  version = "1.2.0"
+  name         = "hello-universe"
+  version      = "1.3.1"
+  registry_uid = data.spectrocloud_registry.palette_community.id
 }
 ```
 
