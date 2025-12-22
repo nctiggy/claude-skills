@@ -135,6 +135,26 @@ users:
     groups: [sudo, admin]
     sudo: ALL=(ALL) NOPASSWD:ALL
 
+# Create br0 bridge interface (recommended for edge deployments)
+stages:
+  network:
+    - name: "Setup br0 bridge"
+      commands:
+        - |
+          cat > /etc/netplan/99-bridge.yaml << 'NETPLAN'
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              eth0:
+                dhcp4: false
+            bridges:
+              br0:
+                interfaces: [eth0]
+                dhcp4: true
+          NETPLAN
+        - netplan apply
+
 stylus:
   site:
     paletteEndpoint: api.spectrocloud.com
@@ -145,11 +165,6 @@ stylus:
       httpProxy: http://proxy:8080
       httpsProxy: http://proxy:8080
       noProxy: localhost,127.0.0.1
-    caCerts:
-      - |
-        -----BEGIN CERTIFICATE-----
-        <CA cert content>
-        -----END CERTIFICATE-----
 ```
 
 ### Step 4: Build Provider Images
