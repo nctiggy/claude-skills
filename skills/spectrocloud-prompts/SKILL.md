@@ -1,209 +1,238 @@
 ---
 name: spectrocloud-prompts
-description: Generate tested prompts for SpectroCloud Palette tasks. Ensures Claude uses the right skills and avoids common pitfalls.
+description: Generate context-efficient prompts for SpectroCloud tasks. Uses critic loop to optimize. Enforces skill usage and agent delegation.
 ---
 
 # SpectroCloud Prompt Generator
 
-Generate prompts that enforce skill usage and bake in critical learnings.
+Generate prompts optimized for **context preservation** in the primary session.
 
-## Why This Skill Exists
+## Core Principles
 
-Claude often:
-- Ignores available skills and reinvents solutions
-- Hits known issues (like pack pagination) repeatedly
-- Doesn't know which skill covers which topic
+### 1. Context is Precious
+The main session's context window is limited. Every prompt MUST:
+- **Delegate heavy work to agents** - Exploration, builds, monitoring go to subagents
+- **Use skills as pre-loaded knowledge** - Don't re-discover what's documented
+- **Keep main session as orchestrator** - Coordinate, don't execute everything inline
 
-**Every prompt generated here MUST:**
-1. Explicitly list which skills to use
-2. Include critical gotchas inline
-3. Tell Claude NOT to deviate from skill guidance
+### 2. Skills ARE the Knowledge
+Skills contain tested, refined knowledge. Prompts should:
+- Reference skills, not reinvent
+- Trust skill guidance over improvisation
+- Add learnings back to skills, not prompts
+
+### 3. Agents Preserve Context
+Use agents (Task tool) for:
+- Long-running operations (builds, monitoring)
+- Exploration and discovery
+- Any task that generates verbose output
+
+---
+
+## Prompt Generation Workflow (MANDATORY)
+
+**Every prompt MUST go through the critic loop before being finalized.**
+
+### Step 1: Draft Initial Prompt
+Write the prompt following the template structure below.
+
+### Step 2: Run Prompt Critic
+Apply this critic checklist to the draft:
+
+```
+## Prompt Critic Checklist
+
+### Context Efficiency
+- [ ] Does it delegate long tasks to agents?
+- [ ] Does it avoid verbose exploration in main session?
+- [ ] Are skills referenced instead of inline explanations?
+- [ ] Is the main session orchestrating, not doing everything?
+
+### Skill Usage
+- [ ] Are ALL relevant skills listed?
+- [ ] Does each step reference which skill to consult?
+- [ ] Are critical gotchas from skills baked in?
+- [ ] Is there NO redundant explanation of what skills already cover?
+
+### Agent Delegation
+- [ ] Build tasks → agent
+- [ ] Monitoring/polling → agent
+- [ ] Discovery/exploration → agent
+- [ ] Pack value fetching → agent or inline (small)
+- [ ] Terraform apply → can be main session (needs interaction)
+
+### Failure Handling
+- [ ] Does it reference troubleshooting skill?
+- [ ] Are common failures listed with skill-based recovery?
+- [ ] Is there guidance on when to escalate vs retry?
+
+### Conciseness
+- [ ] Can any section be shorter?
+- [ ] Are there redundant instructions?
+- [ ] Is the prompt <100 lines when possible?
+```
+
+### Step 3: Refine Based on Critic
+Fix any issues found. Repeat critic until all boxes checked.
+
+### Step 4: Finalize
+The prompt is ready when the critic passes.
+
+---
 
 ## Prompt Template Structure
 
 ```
 ## Task: [TASK NAME]
 
+### Context Strategy
+- Main session: [what it orchestrates]
+- Agents: [what gets delegated]
+
 ### Required Skills
-You MUST use these skills - do NOT attempt to figure things out without them:
-- `spectrocloud-common` - [what to use it for]
-- `spectrocloud-[specific]` - [what to use it for]
+Use these skills - they contain the knowledge, don't reinvent:
+- `spectrocloud-X` - [one-line purpose]
 
-### Critical Rules (DO NOT IGNORE)
-- [Baked-in gotcha 1]
-- [Baked-in gotcha 2]
+### Critical Rules
+[Only rules NOT in skills - assume skills will be read]
 
-### Steps
-1. [Step with skill reference]
-2. [Step with skill reference]
+### Workflow
 
-### If Something Fails
-- Check `spectrocloud-troubleshooting` skill
-- [Specific recovery guidance]
+#### Phase N: [Name]
+**[Agent/Main]**: [brief description]
+- Step (skill: `skill-name`)
+- Step (skill: `skill-name`)
+
+### On Failure
+- Check `spectrocloud-troubleshooting`
+- [Specific recovery if not in troubleshooting skill]
 ```
 
 ---
 
 ## Prompt: 2-Node Edge Cluster Deployment
 
-Use this when deploying a 2-node HA Edge cluster with appliance mode.
-
 ```
 ## Task: Deploy 2-Node Edge Cluster
 
+### Context Strategy
+- Main session: Orchestrate phases, create Terraform, final deployment
+- Build Agent: CanvOS build on remote machine
+- Monitor Agent: Watch cluster events during provisioning
+- Skill Tracker Agent: Capture learnings for skill updates
+
 ### Required Skills
-You MUST use these skills - do NOT attempt to figure things out without them:
-- `spectrocloud-common` - API auth, project lookup, pack discovery
-- `spectrocloud-appliance-mode` - CanvOS builds, ISO creation, user-data
-- `spectrocloud-cluster-profiles` - Profile creation with correct pack values
-- `spectrocloud-clusters` - 2-node cluster creation (API or Terraform)
-- `spectrocloud-troubleshooting` - Event monitoring during provisioning
+Use these - they contain the knowledge:
+- `spectrocloud-common` - Auth, project lookup, pack discovery (pagination!)
+- `spectrocloud-appliance-mode` - CanvOS, user-data, ISO versioning
+- `spectrocloud-cluster-profiles` - Pack values, version alignment
+- `spectrocloud-clusters` - 2-node API/Terraform structure
+- `spectrocloud-troubleshooting` - Event monitoring, known errors
 
-### Critical Rules (DO NOT IGNORE)
-1. **Pack API paginates at 50** - Use offset loop (0, 50, 100, 150) to find latest versions
-2. **Check actual image tag after build** - Don't assume format, use `docker images | grep $REPO`
-3. **2-node requires K3s** - Not kubeadm or RKE2
-4. **Edge tokens are TENANT-scoped** - No ProjectUid header when creating tokens
-5. **Version alignment** - Provider image K8s version must match edge-k3s pack version
-6. **Fetch COMPLETE pack values** - Partial values cause validation failures
+### Critical Rules
+1. Pack API paginates at 50 - use offset loop
+2. Check actual image tag after build - don't assume format
+3. 2-node = K3s only
+4. Edge tokens = tenant-scoped (no ProjectUid)
+5. Version alignment: provider image K8s = edge-k3s pack version
 
-### Steps
+### Workflow
 
-#### Phase 1: Setup
-1. Get API key from 1Password using MCP tools (see `spectrocloud-common`)
-2. Look up project UID by name
-3. Create edge host registration token (NO ProjectUid header!)
+#### Phase 1: Setup [Main]
+- Get API key via MCP (skill: `common`)
+- Look up project UID (skill: `common`)
+- Create edge token - NO ProjectUid header (skill: `clusters`)
 
-#### Phase 2: Build (on build machine)
-4. SSH to build machine, clone CanvOS
-5. Configure .arg with K3s, TWO_NODE=true
-6. Create user-data with bridge networking (see `spectrocloud-appliance-mode`)
-7. Run `earthly --push +provider-image && earthly +iso`
-8. **CHECK ACTUAL IMAGE TAG**: `docker images | grep $IMAGE_REPO` - note exact tag
-9. Rename ISO with version: `palette-edge-k3s-<VERSION>-<DATE>.iso`
+#### Phase 2: Build [Agent]
+Spawn agent for remote build:
+- SSH to build machine, clone CanvOS
+- Configure .arg: K3s, TWO_NODE=true (skill: `appliance-mode`)
+- Create user-data with bridge networking (skill: `appliance-mode`)
+- Build: `earthly --push +provider-image && earthly +iso`
+- **Capture actual image tag**: `docker images | grep $REPO`
+- Rename ISO with version
+- Return: image tag, ISO path
 
-#### Phase 3: Deploy VMs
-10. Upload ISO to Proxmox
-11. Create 2 VMs: 4+ CPU, 8GB+ RAM, 150GB+ disk
-12. Set boot order: `order=scsi0;ide2;net0`
-13. Boot and wait for edge hosts to register in Palette
+#### Phase 3: Deploy VMs [Main or Agent]
+- Upload ISO to Proxmox
+- Create 2 VMs (4 CPU, 8GB, 150GB, boot: scsi0;ide2;net0)
+- Wait for edge hosts in Palette
 
-#### Phase 4: Cluster Profile
-14. Fetch COMPLETE pack values for each pack (see `spectrocloud-cluster-profiles`)
-15. Use exact image tag from step 8 in BYOOS system.uri
-16. Match K8s pack version to what was built
-17. Create profile via API or Terraform
+#### Phase 4: Terraform [Main]
+Create reusable Terraform (skill: `cluster-profiles`, `clusters`):
+- Fetch pack values (use image tag from Phase 2)
+- Create profiles/ module
+- Create clusters/ module
+- Apply profiles first, then clusters
 
-#### Phase 5: Create Cluster
-18. Use 2-node API structure from `spectrocloud-clusters`:
-    - `machinePoolConfig` (not `machinePools`)
-    - `twoNodeCandidatePriority`: "primary"/"secondary"
-    - `isTwoNodeCluster: true` in cloudConfig
-19. Monitor events using `spectrocloud-troubleshooting` skill
+#### Phase 5: Monitor [Agent]
+Spawn monitor agent:
+- Poll events every 10s (skill: `troubleshooting`)
+- Report errors, filter noise
+- Alert on actionable issues
 
-### If Something Fails
-- **Pack not found**: Check pagination - API limits to 50, use offset
-- **Profile validation fails**: You used partial pack values - fetch complete defaults
-- **Cluster stuck**: SSH to edge host, check `journalctl -u spectro-stylus-agent.service -f`
-- **Version mismatch errors**: Provider image tag doesn't match K8s pack version
+### On Failure
+- `spectrocloud-troubleshooting` for event analysis
+- Pack not found → pagination issue
+- Profile validation → incomplete pack values
+- Cluster stuck → SSH to edge host, check stylus agent
+
+### Skill Improvement
+Spawn tracker agent to capture learnings → update skills at end
 ```
 
 ---
 
 ## Prompt: Agent Mode Deployment
 
-Use this for quick agent-mode deployments on existing VMs/nodes.
-
 ```
 ## Task: Deploy Agent Mode Edge Cluster
 
+### Context Strategy
+- Main session: Orchestrate, create profile/cluster
+- Monitor Agent: Event polling
+
 ### Required Skills
-You MUST use these skills - do NOT attempt to figure things out without them:
-- `spectrocloud-common` - API auth, project lookup, pack discovery
-- `spectrocloud-agent-mode` - Agent installation, registration
-- `spectrocloud-cluster-profiles` - Profile with BYOOS system.uri: "NA"
+- `spectrocloud-common` - Auth, pack discovery
+- `spectrocloud-agent-mode` - Installation steps
+- `spectrocloud-cluster-profiles` - BYOOS with "NA"
 - `spectrocloud-clusters` - Cluster creation
 - `spectrocloud-troubleshooting` - Event monitoring
 
-### Critical Rules (DO NOT IGNORE)
-1. **Agent mode supports 1 or 3+ nodes** - NOT 2-node (use appliance mode for 2-node)
-2. **BYOOS pack must use "NA"** - Set `options.system.uri: "NA"`
-3. **Pack API paginates at 50** - Use offset loop for version discovery
-4. **Edge tokens are TENANT-scoped** - No ProjectUid header
-
-### Steps
-1. Get API key, look up project UID
-2. Create edge host token (NO ProjectUid header)
-3. Install agent on target node(s) - see `spectrocloud-agent-mode`
-4. Wait for edge host(s) to register
-5. Create cluster profile with BYOOS system.uri: "NA"
-6. Create cluster, monitor with event stream
-```
-
----
-
-## Prompt: Update Cluster Profile
-
-Use this when updating packs on an existing cluster.
-
-```
-## Task: Update Cluster Profile
-
-### Required Skills
-- `spectrocloud-cluster-profiles` - Profile versioning
-- `spectrocloud-clusters` - Profile update API
-- `spectrocloud-troubleshooting` - Monitor update progress
-
 ### Critical Rules
-1. **Create NEW profile version** - Don't modify in place
-2. **Fetch current pack values first** - Don't lose existing configuration
-3. **Pack pagination at 50** - Use offset when finding new pack versions
+1. Agent mode = 1 or 3+ nodes (NOT 2)
+2. BYOOS system.uri = "NA"
+3. Pack pagination at 50
 
-### Steps
-1. Get current profile: `GET /v1/clusterprofiles/{uid}`
-2. Find new pack version (with pagination!)
-3. Fetch complete pack values for new version
-4. Create new profile version (same name, bumped version)
-5. Update cluster to new profile: `PUT /v1/spectroclusters/{uid}/profiles`
-6. Monitor events during update
-```
+### Workflow
 
----
+#### Phase 1: Setup [Main]
+- Auth, project lookup (skill: `common`)
+- Create edge token - NO ProjectUid (skill: `clusters`)
 
-## Prompt: Terraform Infrastructure Profile
+#### Phase 2: Install Agent [Main or Agent]
+- Install on target nodes (skill: `agent-mode`)
+- Wait for registration
 
-Use this when creating reusable Terraform for profiles.
+#### Phase 3: Deploy [Main]
+- Create profile with BYOOS "NA" (skill: `cluster-profiles`)
+- Create cluster (skill: `clusters`)
 
-```
-## Task: Create Terraform Cluster Profile
+#### Phase 4: Monitor [Agent]
+- Event polling (skill: `troubleshooting`)
 
-### Required Skills
-- `spectrocloud-common` - Registry lookup, Terraform provider setup
-- `spectrocloud-cluster-profiles` - Pack types, Terraform examples
-
-### Critical Rules
-1. **Always specify registry_uid** - Packs exist in multiple registries
-2. **Fetch pack values via API first** - Then save to files
-3. **Use file() for pack values** - Not inline heredocs for large values
-
-### Steps
-1. Look up registry UIDs via API (see `spectrocloud-common`)
-2. For each pack, fetch complete default values
-3. Save values to `pack-values/<pack>.yaml` files
-4. Create Terraform with explicit registry_uid on each pack data source
-5. Reference values with `file("${path.module}/pack-values/<pack>.yaml")`
+### On Failure
+- See `spectrocloud-troubleshooting`
 ```
 
 ---
 
 ## Adding New Prompts
 
-When a task repeatedly causes issues:
+1. **Draft** following template
+2. **Run critic checklist** - ALL boxes must check
+3. **Refine** until critic passes
+4. **Test** the prompt
+5. **Capture learnings** back to skills (not prompts)
 
-1. Identify which skills cover the task
-2. List the gotchas that keep tripping Claude up
-3. Write step-by-step instructions referencing skills
-4. Include failure recovery guidance
-5. Test the prompt and refine
-
-**The goal**: Claude should never hit the same issue twice if we've documented it.
+**Prompts reference skills. Skills contain knowledge.**
