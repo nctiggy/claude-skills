@@ -104,10 +104,34 @@ curl -s "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID" \
   -H "ApiKey: $PALETTE_API_KEY" -H "ProjectUid: $PROJECT_UID"
 ```
 
-### Update (Version)
+### Update (Create New Version)
 **To update a profile deployed to a cluster:**
-1. Create new version (same name, bumped version)
-2. Update cluster (see `spectrocloud-clusters` skill)
+1. Create new version (same name, bumped version number)
+2. Update cluster to use new version (see `spectrocloud-clusters` skill)
+
+```bash
+# Create new version of existing profile
+curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {"name": "my-existing-profile"},
+    "spec": {
+      "version": "1.1.0",
+      ...
+    }
+  }'
+# This creates version 1.1.0 alongside existing 1.0.0
+```
+
+### List Profile Versions
+```bash
+curl -s "https://api.spectrocloud.com/v1/clusterprofiles?filters=metadata.name=PROFILE_NAME" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, version: .spec.version}]'
+```
 
 ### Delete
 ```bash

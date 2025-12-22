@@ -7,11 +7,48 @@ description: Common Spectro Cloud Palette utilities for API operations. Project 
 
 Shared utilities for all Palette API operations. Reference this skill for project/pack lookups.
 
+## End-to-End Workflow
+
+**For meeting prep / demo setup, follow this order:**
+
+1. **Get credentials** → Check 1Password for `palette-api-key`, set `PALETTE_API_KEY`
+2. **Get project** → Ask user for project name, look up `PROJECT_UID`
+3. **Discover existing resources** → List profiles, clusters, edge hosts
+4. **Decide what to create/update** → Present findings to user
+5. **Create/update profiles** → Use `spectrocloud-cluster-profiles` skill
+6. **Create cluster** → Use `spectrocloud-clusters` skill (if edge hosts available)
+7. **Verify deployment** → Check cluster state, get kubeconfig
+
+**API vs Terraform decision:**
+- **API**: Quick one-off demos, testing, exploration
+- **Terraform**: Repeatable deployments, production, GitOps workflows
+
 ## Authentication
 
-All API calls require:
+All API calls require `PALETTE_API_KEY` and `PROJECT_UID` environment variables.
+
+### Get Credentials from 1Password
+
+**Preferred method** - Use 1Password CLI or MCP tools:
+```bash
+# Using op CLI (if user has 1Password configured)
+export PALETTE_API_KEY=$(op read "op://k8s vault/palette-api-key/credential")
+
+# Or ask Claude to use MCP tools:
+# - mcp__subtle-bug__op_list_items to find the secret
+# - mcp__subtle-bug__op_inject_secret to retrieve it
+```
+
+**Manual method** (less preferred):
 ```bash
 export PALETTE_API_KEY="<your-api-key>"
+```
+
+**Before any Palette API operations**, verify credentials are set:
+```bash
+# Test API connectivity
+curl -s "https://api.spectrocloud.com/v1/projects" \
+  -H "ApiKey: $PALETTE_API_KEY" | jq 'if .items then "OK: Found \(.items | length) projects" else "ERROR: \(.)" end'
 ```
 
 ---
@@ -105,7 +142,86 @@ curl -s "https://api.spectrocloud.com/v1/registries/helm?limit=50" \
 
 ---
 
-## Terraform Data Sources
+## Discovery: What Exists?
+
+Before creating resources, check what already exists:
+
+### List Cluster Profiles
+```bash
+curl -s "https://api.spectrocloud.com/v1/clusterprofiles" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, version: .spec.version, type: .spec.published.type}]'
+```
+
+### List Edge Clusters
+```bash
+curl -s "https://api.spectrocloud.com/v1/spectroclusters?filters=spec.cloudType=edge-native" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, state: .status.state}]'
+```
+
+### List Edge Hosts (with status)
+```bash
+curl -s "https://api.spectrocloud.com/v1/edgehosts" \
+  -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" | \
+  jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, state: .status.state,
+      health: .status.health.state, clusterUid: .status.clusterUid}]'
+```
+
+### Get Latest Pack Version
+```bash
+PACK_NAME="edge-k3s"
+curl -s "https://api.spectrocloud.com/v1/packs?limit=100" \
+  -H "ApiKey: $PALETTE_API_KEY" | \
+  jq --arg name "$PACK_NAME" '
+    [.items[] | select(.metadata.name == $name and .status.disabled != true)] |
+    sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
+    reverse | .[0] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid}'
+```
+
+---
+
+## Terraform Setup
+
+### Provider Configuration
+```hcl
+terraform {
+  required_providers {
+    spectrocloud = {
+      source  = "spectrocloud/spectrocloud"
+      version = ">= 0.22.0"
+    }
+  }
+}
+
+provider "spectrocloud" {
+  host    = var.palette_host      # "api.spectrocloud.com" for SaaS
+  api_key = var.palette_api_key   # From 1Password or env var
+
+  # Optional: project_name to scope all resources
+  # project_name = "my-project"
+}
+
+variable "palette_host" {
+  default = "api.spectrocloud.com"
+}
+
+variable "palette_api_key" {
+  sensitive = true
+}
+```
+
+### tfvars Pattern
+```hcl
+# terraform.tfvars (do NOT commit to git)
+palette_api_key = "your-api-key"
+
+# Or use environment variable:
+# export TF_VAR_palette_api_key=$(op read "op://k8s vault/palette-api-key/credential")
+```
 
 ### Project Lookup
 ```hcl
