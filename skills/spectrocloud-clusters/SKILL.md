@@ -104,25 +104,30 @@ curl -s -X POST "https://api.spectrocloud.com/v1/spectroclusters/edge-native?Pro
 
 ### 2-Node HA Cluster
 ```bash
-# Enable twoNodeMode in spec
+# Key 2-node fields:
+# - isTwoNodeCluster: true in cloudConfig
+# - twoNodeCandidatePriority: "primary"/"secondary" per edge host
+# - useControlPlaneAsWorker: true in poolConfig
 "spec": {
   "cloudType": "edge-native",
-  "twoNodeMode": true,
   "profiles": [{"uid": "<2node-profile-uid>"}],
   "cloudConfig": {
     "sshKeys": ["ssh-rsa AAAA..."],
     "vip": "192.168.1.100",
-    "ntpServers": ["time.google.com"]
+    "ntpServers": ["time.google.com"],
+    "isTwoNodeCluster": true
   },
   "machinePools": [
     {
       "name": "control-plane-pool",
       "size": 2,
       "controlPlane": true,
-      "controlPlaneAsWorker": true,
+      "poolConfig": {
+        "useControlPlaneAsWorker": true
+      },
       "edgeHosts": [
-        {"hostUid": "<node1-uid>"},
-        {"hostUid": "<node2-uid>"}
+        {"hostUid": "<node1-uid>", "twoNodeCandidatePriority": "primary"},
+        {"hostUid": "<node2-uid>", "twoNodeCandidatePriority": "secondary"}
       ]
     }
   ]
@@ -244,18 +249,18 @@ machine_pool {
 
 ```hcl
 resource "spectrocloud_cluster_edge_native" "two_node" {
-  name         = "two-node-cluster"
-  context      = "project"
-  two_node_mode = true  # Enable 2-node HA
+  name    = "two-node-cluster"
+  context = "project"
 
   cluster_profile {
     id = data.spectrocloud_cluster_profile.two_node_profile.id
   }
 
   cloud_config {
-    ssh_keys    = [var.ssh_public_key]
-    vip         = var.cluster_vip
-    ntp_servers = ["time.google.com"]
+    ssh_keys           = [var.ssh_public_key]
+    vip                = var.cluster_vip
+    ntp_servers        = ["time.google.com"]
+    is_two_node_cluster = true  # Enable 2-node HA
   }
 
   machine_pool {
@@ -264,10 +269,12 @@ resource "spectrocloud_cluster_edge_native" "two_node" {
     control_plane_as_worker = true
 
     edge_host {
-      host_uid = data.spectrocloud_appliance.node1.id
+      host_uid                   = data.spectrocloud_appliance.node1.id
+      two_node_candidate_priority = "primary"
     }
     edge_host {
-      host_uid = data.spectrocloud_appliance.node2.id
+      host_uid                   = data.spectrocloud_appliance.node2.id
+      two_node_candidate_priority = "secondary"
     }
   }
 }
