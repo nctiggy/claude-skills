@@ -168,11 +168,27 @@ curl -s "https://api.spectrocloud.com/v1/packs?limit=200" ... | \
   jq '[.items[] | select(.spec.registryUid == "xxx")]'
 ```
 
-**Version sorting**: API returns lexicographic order - "1.9.5" sorts AFTER "1.13.3". For N-1 version:
+---
+
+## Version Selection Policy
+
+**Always use the latest available version unless user explicitly specifies one.**
+
 ```bash
-jq '[.items[] | select(.metadata.name == "edge-k3s")] |
-    sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[1]'
+curl -s "https://api.spectrocloud.com/v1/packs?limit=100&filters=metadata.name=PACK_NAME" \
+  -H "ApiKey: $PALETTE_API_KEY" | jq '
+  [.items[] | {name: .metadata.name, uid: .metadata.uid, tag: .spec.version, registry: .spec.registryUid, disabled: .status.disabled}]
+  | map(select(.disabled != true))
+  | sort_by(.tag | split(".") | map(tonumber? // 0))
+  | reverse | .[0]'
 ```
+
+**Rules:**
+1. Filter out disabled packs (`disabled != true`)
+2. Sort by semantic version, not string (`3.13.0 > 3.9.0`)
+3. Prefer "Public Repo" registry when pack exists in multiple
+4. If user says "OPA" or "metallb" without version → use latest
+5. Only use specific version if explicitly requested
 
 ---
 
@@ -421,21 +437,9 @@ resource "spectrocloud_cluster_profile" "v2" {
 
 ## BYOOS Pack Values
 
-**Agent Mode** (system.uri = "NA"):
-```yaml
-options:
-  system.uri: "NA"
-```
+**Agent Mode**: `options: { system.uri: "NA" }`
 
-**Appliance Mode** (provider image URL):
-```yaml
-pack:
-  content:
-    images:
-      - image: '{{.spectro.pack.edge-native-byoi.options.system.uri}}'
-options:
-  system.uri: "ttl.sh/my-images:k3s-1.30.5-demo"
-```
+**Appliance Mode**: Set `options.system.uri` to provider image URL (e.g., `ttl.sh/my-images:k3s-1.30.5-demo`)
 
 ---
 
@@ -469,17 +473,6 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
   -H "ProjectUid: $NEW_PROJECT_UID" \
   -H "Content-Type: application/json" -d @-
 ```
-
----
-
-## Recommended Workflow
-
-1. Use `spectrocloud-common` skill to look up project UID
-2. Use `spectrocloud-common` skill to find packs and fetch default values
-3. Create profile via API or Terraform with full values
-4. Run `terraform plan` first to catch validation errors
-
-See `spectrocloud-common` skill for troubleshooting common pack/registry issues.
 
 ---
 
