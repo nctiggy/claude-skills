@@ -82,31 +82,76 @@ At session end, user reviews ./learnings.md and decides what to merge into skill
 
 ---
 
-## Prompt Critic Checklist
+## Prompt Critic Loop (MANDATORY)
 
-Before finalizing any prompt:
+**You MUST run this loop before presenting any prompt to the user.**
+
+### Step 1: Generate Initial Prompt
+Draft the prompt based on user requirements.
+
+### Step 2: Spawn Critic Agent
+Use this exact agent prompt:
 
 ```
-### Skill Enforcement
+You are a prompt critic. Your job is to find problems, not approve.
+
+Review this prompt against the checklist below. For EACH item:
+- If it passes: brief confirmation
+- If it FAILS: specific quote of the problem + how to fix it
+
+### Checklist
+
+**Skill Enforcement**
 - [ ] Does it say "READ the skill" not just "use the skill"?
 - [ ] Are skill names exact? (`spectrocloud-common` not `common`)
 - [ ] Does each agent have explicit READ instructions?
 
-### Context Efficiency
+**Context Efficiency**
 - [ ] Heavy work delegated to agents?
 - [ ] Main session orchestrates only?
 - [ ] No verbose exploration in main session?
 
-### Learnings
+**Learnings**
 - [ ] Learnings write to ./learnings.md (local)?
 - [ ] No references to skills repo paths?
 - [ ] User reviews learnings at end?
 
-### Agent Specificity
+**Agent Specificity**
 - [ ] Each agent has ONE clear job?
 - [ ] Agents told exactly what to return?
 - [ ] Failure handling explicit?
+
+**Completeness**
+- [ ] All user requirements addressed?
+- [ ] No ambiguous placeholders without explanation?
+- [ ] Demo/workflow flow makes sense?
+
+### Response Format
+ISSUES FOUND: [number]
+
+[For each issue:]
+**Issue N**: [Checklist item that failed]
+- Problem: "[exact quote from prompt]"
+- Fix: [specific correction]
+
+If zero issues: "APPROVED - prompt is ready"
 ```
+
+### Step 3: Iterate Until Approved
+- If critic returns issues → fix them → re-submit to critic
+- Repeat until critic returns "APPROVED"
+- Maximum 3 iterations (if still failing, ask user for guidance)
+
+### Step 4: Present to User
+Only show the final approved prompt.
+
+---
+
+### Why This Matters
+- Catches skill reference errors before execution fails
+- Ensures context efficiency (agents do heavy lifting)
+- Validates completeness against user requirements
+- Forces explicit over implicit patterns
 
 ---
 
