@@ -24,7 +24,12 @@ jobs:
           earthly bootstrap
 
       - name: Clone CanvOS
-        run: git clone https://github.com/spectrocloud/CanvOS.git
+        run: |
+          git clone https://github.com/spectrocloud/CanvOS.git
+          cd CanvOS
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          echo "Using CanvOS $LATEST_TAG"
+          git checkout "$LATEST_TAG"
 
       - name: Copy Configuration
         run: |
@@ -83,6 +88,7 @@ build-edge:
     - earthly bootstrap
   script:
     - git clone https://github.com/spectrocloud/CanvOS.git
+    - cd CanvOS && LATEST_TAG=$(git describe --tags --abbrev=0) && echo "Using CanvOS $LATEST_TAG" && git checkout "$LATEST_TAG" && cd ..
     - cp .arg user-data CanvOS/
     - cd CanvOS
     - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD

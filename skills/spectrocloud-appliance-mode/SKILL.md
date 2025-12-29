@@ -47,6 +47,9 @@ earthly bootstrap
 
 ```bash
 git clone https://github.com/spectrocloud/CanvOS.git && cd CanvOS
+LATEST_TAG=$(git describe --tags --abbrev=0)
+echo "Using CanvOS $LATEST_TAG"
+git checkout "$LATEST_TAG"
 
 cat << 'EOF' > .arg
 OS_DISTRIBUTION=ubuntu
@@ -262,6 +265,9 @@ BUILD_HOST="ubuntu@subtle-bug.maas"  # Or your build machine
 # Clone, configure, and build in one session
 ssh $BUILD_HOST << 'ENDSSH'
 cd ~ && rm -rf CanvOS && git clone https://github.com/spectrocloud/CanvOS.git && cd CanvOS
+LATEST_TAG=$(git describe --tags --abbrev=0)
+echo "Using CanvOS $LATEST_TAG"
+git checkout "$LATEST_TAG"
 
 cat << 'ARGFILE' > .arg
 OS_DISTRIBUTION=ubuntu
