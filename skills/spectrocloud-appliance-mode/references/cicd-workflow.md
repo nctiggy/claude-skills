@@ -39,10 +39,6 @@ jobs:
       - name: Login to Registry
         run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login -u ${{ secrets.REGISTRY_USER }} --password-stdin
 
-      - name: Build Provider Images
-        working-directory: CanvOS
-        run: earthly +build-provider-images
-
       - name: Build ISO
         working-directory: CanvOS
         run: earthly +iso
@@ -52,6 +48,10 @@ jobs:
         with:
           name: edge-installer-iso
           path: CanvOS/build/*.iso
+
+      - name: Build and Push Provider Images
+        working-directory: CanvOS
+        run: earthly --push +build-provider-images
 ```
 
 ## Recommended Repository Structure
@@ -92,8 +92,8 @@ build-edge:
     - cp .arg user-data CanvOS/
     - cd CanvOS
     - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
-    - earthly +build-provider-images
     - earthly +iso
+    - earthly --push +build-provider-images
   artifacts:
     paths:
       - CanvOS/build/*.iso

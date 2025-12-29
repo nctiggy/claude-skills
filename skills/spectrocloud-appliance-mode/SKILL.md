@@ -127,8 +127,8 @@ EOF
 
 ```bash
 docker login <registry>  # Skip for ttl.sh
-earthly +build-provider-images
-earthly +iso
+earthly +iso  # Build ISO first - start imaging nodes while provider images push
+earthly --push +build-provider-images
 # Output: build/palette-edge-installer.iso
 ```
 
@@ -179,8 +179,8 @@ EOF
 
 ### Build & Deploy
 ```bash
+earthly +iso  # Build ISO first - start imaging nodes while provider images push
 earthly --push +provider-image
-earthly +iso
 ```
 
 When creating cluster: toggle "Two-Node Mode", select exactly 2 edge hosts.
@@ -319,8 +319,8 @@ stylus:
     projectName: <PROJECT>
 USERDATA
 
+earthly +iso  # Build ISO first - start imaging nodes while provider images push
 earthly --push +provider-image
-earthly +iso
 ENDSSH
 
 # Copy ISO back with version name

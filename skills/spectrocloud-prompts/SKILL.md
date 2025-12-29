@@ -203,7 +203,7 @@ Tasks:
 2. Clone CanvOS repo
 3. Create .arg file (skill has 2-node example - K3s, TWO_NODE=true)
 4. Create user-data (skill has bridge networking example)
-5. Run: earthly --push +provider-image && earthly +iso
+5. Run: earthly +iso && earthly --push +provider-image  # ISO first, then push provider images
 6. IMPORTANT: Run `docker images | grep [REPO]` and capture EXACT tag
 7. Rename ISO with version per skill guidance
 
