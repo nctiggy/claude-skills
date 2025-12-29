@@ -12,7 +12,7 @@ Shared utilities for all Palette API operations. Reference this skill for projec
 **For meeting prep / demo setup, follow this order:**
 
 1. **Get credentials** → Check 1Password for `palette-api-key`, set `PALETTE_API_KEY`
-2. **Get project** → Ask user for project name, look up `PROJECT_UID`
+2. **Get project** → **ALWAYS ASK** user for project name, then look up `PROJECT_UID`. Never assume or infer.
 3. **Discover existing resources** → List profiles, clusters, edge hosts
 4. **Decide what to create/update** → Present findings to user
 5. **Create/update profiles** → Use `spectrocloud-cluster-profiles` skill
@@ -54,6 +54,8 @@ curl -s "https://api.spectrocloud.com/v1/projects" \
 ---
 
 ## Project Lookup
+
+**ALWAYS ASK the user which project to use.** Never assume or infer from context.
 
 API calls require a Project UID. Ask for the project **name**, then look it up:
 

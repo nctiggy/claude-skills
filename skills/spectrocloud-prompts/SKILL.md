@@ -182,9 +182,10 @@ Do NOT attempt to update the skills repo.
 FIRST: READ `spectrocloud-common` skill.
 
 1. Get API key via MCP tools (pattern in skill)
-2. Look up project UID by name (pattern in skill)
-3. READ `spectrocloud-clusters` skill for edge token creation
-4. Create edge token - NOTE: tenant-scoped, NO ProjectUid header
+2. **ASK user**: Which Palette project to use?
+3. Look up project UID by name (pattern in skill)
+4. READ `spectrocloud-clusters` skill for edge token creation
+5. Create edge token - NOTE: tenant-scoped, NO ProjectUid header
 
 ---
 
@@ -302,9 +303,11 @@ Write issues to: ./learnings.md
 
 ### Phase 1: Setup [Main]
 READ `spectrocloud-common`, then:
-1. Get API key, look up project UID
-2. READ `spectrocloud-clusters` for token creation
-3. Create edge token (NO ProjectUid header)
+1. Get API key
+2. **ASK user**: Which Palette project to use?
+3. Look up project UID by name
+4. READ `spectrocloud-clusters` for token creation
+5. Create edge token (NO ProjectUid header)
 
 ### Phase 2: Install [Main]
 READ `spectrocloud-agent-mode`, then:
