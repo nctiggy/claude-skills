@@ -46,7 +46,12 @@ earthly bootstrap
 ### Step 1: Clone and Configure
 
 ```bash
-git clone https://github.com/spectrocloud/CanvOS.git && cd CanvOS
+# Clone fresh or update existing repo
+if [ -d "CanvOS" ]; then
+  cd CanvOS && git fetch --tags && git pull
+else
+  git clone https://github.com/spectrocloud/CanvOS.git && cd CanvOS
+fi
 LATEST_TAG=$(git describe --tags --abbrev=0)
 echo "Using CanvOS $LATEST_TAG"
 git checkout "$LATEST_TAG"
@@ -264,7 +269,12 @@ BUILD_HOST="ubuntu@subtle-bug.maas"  # Or your build machine
 
 # Clone, configure, and build in one session
 ssh $BUILD_HOST << 'ENDSSH'
-cd ~ && rm -rf CanvOS && git clone https://github.com/spectrocloud/CanvOS.git && cd CanvOS
+cd ~
+if [ -d "CanvOS" ]; then
+  cd CanvOS && git fetch --tags && git pull
+else
+  git clone https://github.com/spectrocloud/CanvOS.git && cd CanvOS
+fi
 LATEST_TAG=$(git describe --tags --abbrev=0)
 echo "Using CanvOS $LATEST_TAG"
 git checkout "$LATEST_TAG"

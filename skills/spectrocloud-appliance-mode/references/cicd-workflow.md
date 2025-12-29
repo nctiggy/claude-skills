@@ -23,10 +23,13 @@ jobs:
           sudo mv earthly /usr/local/bin/ && sudo chmod +x /usr/local/bin/earthly
           earthly bootstrap
 
-      - name: Clone CanvOS
+      - name: Clone or Update CanvOS
         run: |
-          git clone https://github.com/spectrocloud/CanvOS.git
-          cd CanvOS
+          if [ -d "CanvOS" ]; then
+            cd CanvOS && git fetch --tags && git pull
+          else
+            git clone https://github.com/spectrocloud/CanvOS.git && cd CanvOS
+          fi
           LATEST_TAG=$(git describe --tags --abbrev=0)
           echo "Using CanvOS $LATEST_TAG"
           git checkout "$LATEST_TAG"
@@ -87,7 +90,7 @@ build-edge:
     - chmod +x /usr/local/bin/earthly
     - earthly bootstrap
   script:
-    - git clone https://github.com/spectrocloud/CanvOS.git
+    - if [ -d "CanvOS" ]; then cd CanvOS && git fetch --tags && git pull && cd ..; else git clone https://github.com/spectrocloud/CanvOS.git; fi
     - cd CanvOS && LATEST_TAG=$(git describe --tags --abbrev=0) && echo "Using CanvOS $LATEST_TAG" && git checkout "$LATEST_TAG" && cd ..
     - cp .arg user-data CanvOS/
     - cd CanvOS
