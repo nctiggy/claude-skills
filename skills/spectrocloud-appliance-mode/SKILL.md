@@ -332,16 +332,44 @@ See `references/cicd-workflow.md` for GitHub Actions and GitLab CI examples.
 |-------|----------|
 | Registry errors | Verify `docker login`, ttl.sh needs no login but expires in 24h |
 | ISO boot hangs | Check UEFI/BIOS mode, EFI partition size |
-| Reinstall loop | Boot order wrong - must be disk first, then CD-ROM |
+| Reinstall loop | Boot order wrong - must be disk first, then CD-ROM. See fix below. |
 | Not registering | Check user-data, network, logs: `journalctl -u spectro-stylus-agent.service -f` |
 | Re-imaging | Delete old edge host from Palette first |
 | Wrong K8s version | Verify ISO name matches expected build, check for stale ISOs |
 | Stale ISO used | List ISOs on hypervisor, delete old ones, re-upload versioned ISO |
 | Storage pool too small | 100GB disk leaves ~2.5GB free - increase disk or add data disk |
+| Cluster stuck Provisioning, no nodes | VMs likely in install loop - check boot order and power cycle |
+
+### Fixing Install Loop (Boot Order)
+
+**Symptom**: VMs keep reinstalling from ISO instead of booting from installed disk. Cluster stays in "Provisioning" with no nodes appearing for 30+ minutes.
+
+**Cause**: Boot order is `ide2;scsi0` (CD-ROM first) instead of `scsi0;ide2` (disk first).
+
+**Fix**:
+```bash
+# 1. Change boot order via Proxmox API
+curl -k -X PUT "https://<PROXMOX>:8006/api2/json/nodes/proxmox/qemu/<VMID>/config" \
+  -H "Cookie: PVEAuthCookie=${TICKET}" \
+  -H "CSRFPreventionToken: ${CSRF}" \
+  --data-urlencode "boot=order=scsi0;ide2;net0"
+
+# 2. MUST power off completely (not reboot/reset!)
+curl -k -X POST ".../qemu/<VMID>/status/stop" ...
+
+# 3. Wait for VM to stop, then power on
+curl -k -X POST ".../qemu/<VMID>/status/start" ...
+```
+
+**CRITICAL**: Reboot and reset do NOT reliably apply boot order changes. You MUST do a full power off then power on.
 
 ## Provider Image Tag
 
-**Don't assume the tag format** - CanvOS generates tags based on `.arg` values. Always check the actual tag after build:
+**Don't assume the tag format** - CanvOS generates tags based on `.arg` values but **includes Kairos version, not OS version**:
+- Expected: `k3s-1.33.5-ubuntu-22.04-2node`
+- Actual: `k3s-1.33.5-v4.8.1-2node` (Kairos version)
+
+Always check the actual tag after build:
 
 ```bash
 # Check local images after build

@@ -188,8 +188,11 @@ TOKEN=$(echo $RESPONSE | jq -r '.spec.token')
 | "Two-node candidate priority demands one primary and one secondary" | Add `two_node_role = "primary"` and `"secondary"` to each edge_host block (Terraform) |
 | Terraform attribute not found | API vs Terraform naming differs - check with `terraform providers schema -json` |
 | Cluster stuck provisioning | Check edge host logs: `journalctl -u spectro-stylus-agent.service -f` |
+| Cluster stuck Provisioning, no nodes appearing | VMs likely in install loop - check boot order is disk-first (`scsi0;ide2`), power cycle VMs |
+| 2-node cluster needs VIP | 2-node clusters cannot use overlay-only networking - must specify a VIP |
 | Can't find latest K8s version | API paginates at 50 - use offset parameter to get all versions |
 | "ProjectUidIsNotEmpty" on token creation | Edge host tokens are tenant-scoped - remove ProjectUid header |
+| Profiles created but cluster creation fails | Check Terraform provider has `project_name` set (see `spectrocloud-cluster-profiles` skill) |
 
 ## Quick Reference
 

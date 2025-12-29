@@ -77,6 +77,8 @@ values = file("pack-values-modified.yaml")
 | Bitnami | `helm` |
 | Palette Community Registry | `oci` |
 
+**BYOOS Pack (edge-native-byoi)**: Uses OCI registry type → `type = "oci"`. Profile creation fails with "PackType 'pack' is not matching with registry type 'oci'" if wrong.
+
 Mismatch causes: `PackType 'pack' is not matching with registry type 'oci'`
 
 **Discover registries:**
@@ -170,6 +172,8 @@ curl -s -X DELETE "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID"
 | "PackType 'pack' is not matching with registry type 'oci'" | Wrong pack type - check registry (Public Repo=spectro, Community=oci, Bitnami=helm) |
 | Can't find latest pack version | API paginates at 50 - use offset parameter |
 | Profile validation fails | Ensure ALL pack default values are included, not just modified sections |
+| Profiles created but don't exist | Missing `project_name` in Terraform provider - profiles are orphaned |
+| Terraform shows ID but API returns null | Add `project_name` to provider, `terraform state rm`, re-apply |
 
 ## API Gotchas
 
@@ -195,7 +199,32 @@ For appliance mode, **three components MUST align**:
 
 **Failure mode**: Mismatched versions cause cluster provisioning to hang or fail.
 
-## Terraform: Registry UID Required
+## Terraform: Critical Configuration
+
+### CRITICAL: Provider project_name Required
+
+**The `spectrocloud` provider MUST have `project_name` set for project-scoped resources:**
+
+```hcl
+provider "spectrocloud" {
+  host         = "api.spectrocloud.com"
+  api_key      = var.palette_api_key
+  project_name = "My-Project"  # REQUIRED!
+}
+```
+
+**Failure mode**: Without `project_name`, profiles appear to create successfully (Terraform shows IDs) but are orphaned and inaccessible in the project. The API returns null when querying.
+
+**Detection**: Query the API to verify profiles exist:
+```bash
+curl -s "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID" \
+  -H "ApiKey: $API_KEY" -H "ProjectUid: $PROJECT_UID" | jq '.metadata.name'
+# Returns null if profile doesn't exist in project
+```
+
+**Fix**: Add `project_name` to provider, remove stale state (`terraform state rm`), re-apply.
+
+### Registry UID Required
 
 When packs exist in multiple registries, `spectrocloud_pack` data source returns error:
 ```
