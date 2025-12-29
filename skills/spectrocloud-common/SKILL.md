@@ -84,6 +84,8 @@ curl -s "https://api.spectrocloud.com/v1/projects" \
 
 **Ask user for the pack name.** If unknown, suggest browsing Palette UI or searching.
 
+**CRITICAL**: Always query for the LATEST version of every pack before use. Never assume or use remembered versions - they change frequently. See "Get Latest Pack Version" section below.
+
 ### Find Pack by Exact Name (All Versions, Newest First)
 
 **Important**: Pack API paginates at 50 results. Newer versions may require offset parameter.
@@ -180,20 +182,25 @@ curl -s "https://api.spectrocloud.com/v1/edgehosts" \
       health: .status.health.state, clusterUid: .status.clusterUid}]'
 ```
 
-### Get Latest Pack Version
+### Get Latest Pack Version (MANDATORY)
 
-**Important**: API paginates at 50. Always check multiple pages for recent K8s versions.
+**ALWAYS run this query for EVERY pack** you intend to use. Never skip this step or use cached/remembered versions.
+
+**CRITICAL**: API paginates at 50 results. Popular packs (Calico, K8s, etc.) have many versions - you MUST use pagination to find the true latest:
 
 ```bash
-# Get latest version with pagination (required for packs with many versions)
-PACK_NAME="edge-k3s"
-(for OFFSET in 0 50 100 150; do
+# Get LATEST version of a pack (handles pagination properly)
+PACK_NAME="cni-calico"  # Replace with actual pack name
+LATEST=$((for OFFSET in 0 50 100 150; do
   curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
     -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
 done) | jq -s '[.[] | select(.status.disabled != true)] |
   sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
-  reverse | .[0] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid}'
+  reverse | .[0] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid}')
+echo "$LATEST"
 ```
+
+**Example**: Calico 3.30.1 vs 3.31.2 - without pagination you may get an older version that appears "latest" in the first 50 results.
 
 ---
 

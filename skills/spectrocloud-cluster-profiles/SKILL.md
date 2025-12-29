@@ -31,6 +31,8 @@ When adding applications, search in this order:
 3. Profile type? (cluster or add-on)
 4. What packs? (use `spectrocloud-common` skill for discovery)
 
+**ALWAYS get the latest version of each pack** unless the user specifies a version. Use the Version Selection query below for EVERY pack.
+
 ## MANDATORY: Pack Values Workflow
 
 **Partial pack values WILL fail validation.** Before creating ANY profile:
@@ -98,19 +100,25 @@ curl -s "https://api.spectrocloud.com/v1/registries/metadata" -H "ApiKey: $PALET
 | cilium | `cni-cilium-oss` | Public Repo | `spectro` |
 | harbor | `harbor` | Bitnami | `helm` |
 
-## Version Selection
+## Version Selection (MANDATORY)
 
-Always use latest available version unless user specifies one:
+**ALWAYS query for the latest version of EVERY pack** before creating profiles. Never assume or hardcode versions - they change frequently.
+
+**CRITICAL**: API paginates at 50 results. Popular packs like Calico have many versions - you MUST use pagination to find the true latest:
 
 ```bash
-curl -s "https://api.spectrocloud.com/v1/packs?limit=100&filters=metadata.name=PACK_NAME" \
-  -H "ApiKey: $PALETTE_API_KEY" | jq '
-  [.items[] | {name: .metadata.name, uid: .metadata.uid, tag: .spec.version,
-   registry: .spec.registryUid, disabled: .status.disabled}]
-  | map(select(.disabled != true))
-  | sort_by(.tag | split(".") | map(tonumber? // 0))
-  | reverse | .[0]'
+# Get LATEST version of a pack (handles pagination properly)
+PACK_NAME="cni-calico"  # Replace with actual pack name
+LATEST=$((for OFFSET in 0 50 100 150; do
+  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
+    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
+done) | jq -s '[.[] | select(.status.disabled != true)] |
+  sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
+  reverse | .[0] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid, registry: .spec.registryUid}')
+echo "$LATEST"
 ```
+
+**Run this query for EACH pack you're adding to the profile.** Do not skip this step or use cached/remembered versions.
 
 ## CRUD Operations
 
