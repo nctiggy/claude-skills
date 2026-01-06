@@ -39,7 +39,7 @@ data "spectrocloud_registry" "public_repo" {
 
 data "spectrocloud_pack" "byoos" {
   name         = "edge-native-byoi"
-  version      = "2.0.0"
+  version      = "2.1.0"
   registry_uid = data.spectrocloud_registry.public_repo.id
 }
 
@@ -165,7 +165,7 @@ resource "spectrocloud_cluster_profile" "edge_infra" {
 
   pack {
     name         = "edge-native-byoi"
-    tag          = "2.0.0"
+    tag          = "2.1.0"
     uid          = data.spectrocloud_pack.byoos.id
     registry_uid = data.spectrocloud_registry.public_repo.id
     type         = "spectro"

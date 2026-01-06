@@ -18,7 +18,7 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
           {
             "name": "edge-native-byoi",
             "layer": "os",
-            "tag": "2.0.0",
+            "tag": "2.1.0",
             "uid": "<pack-uid>",
             "registryUid": "<registry-uid>",
             "type": "spectro",
