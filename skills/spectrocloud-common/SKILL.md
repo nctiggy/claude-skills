@@ -204,6 +204,76 @@ echo "$LATEST"
 
 ---
 
+## K8s Version Discovery
+
+**Default to n-1 minor version** (one behind latest) for stability. Example: if 1.33.6 is latest, use 1.32.x.
+
+### Get n-1 Minor K8s Version (Palette API)
+
+For cluster profiles, query Palette API for edge K8s pack versions:
+
+```bash
+# Get n-1 minor version for edge-k3s (recommended default)
+PACK_NAME="edge-k3s"
+K8S_VERSION=$((for OFFSET in 0 50 100 150; do
+  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
+    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
+done) | jq -s '[.[] | select(.status.disabled != true) | .spec.version] | unique |
+  sort_by(split(".") | map(tonumber)) | reverse |
+  group_by(split(".")[0:2] | join(".")) | .[1][0] // .[0][0]')
+echo "Recommended K8s version: $K8S_VERSION"
+```
+
+**Query for other distributions:**
+- `edge-k3s` - K3s (required for 2-node clusters)
+- `edge-k8s` - Kubeadm
+
+### Get Supported K8s Versions from CanvOS
+
+For appliance mode builds, query CanvOS `k8s_version.json` from latest release:
+
+```bash
+# Get latest CanvOS tag
+CANVOS_TAG=$(gh api repos/spectrocloud/CanvOS/tags --jq '.[0].name')
+echo "Latest CanvOS: $CANVOS_TAG"
+
+# Fetch k8s_version.json
+curl -s "https://raw.githubusercontent.com/spectrocloud/CanvOS/$CANVOS_TAG/k8s_version.json" > k8s_versions.json
+
+# Get n-1 minor for a distribution (default: k3s)
+DISTRO="k3s"
+K8S_VERSION=$(jq -r --arg d "$DISTRO" '.[$d] |
+  sort_by(split(".") | map(tonumber)) | reverse |
+  group_by(split(".")[0:2] | join(".")) | .[1][0] // .[0][0]' k8s_versions.json)
+echo "Recommended $DISTRO version: $K8S_VERSION"
+```
+
+**Supported distributions in CanvOS:**
+- `k3s` - K3s (lightweight, required for 2-node)
+- `rke2` - RKE2 (Rancher)
+- `kubeadm` - Standard kubeadm
+- `kubeadm-fips` - FIPS-compliant kubeadm
+- `nodeadm` - Amazon EKS nodeadm
+- `canonical` - Canonical K8s
+
+### List All Available Versions
+
+```bash
+# From CanvOS - all distributions and their versions
+curl -s "https://raw.githubusercontent.com/spectrocloud/CanvOS/$CANVOS_TAG/k8s_version.json" | \
+  jq 'to_entries | .[] | "\(.key): \(.value | length) versions, latest: \(.value | sort_by(split(".") | map(tonumber)) | reverse | .[0])"'
+```
+
+### n-1 Minor Logic Explained
+
+The jq filter:
+1. `sort_by(split(".") | map(tonumber)) | reverse` - Sort versions descending (1.33.6, 1.33.5, 1.32.9...)
+2. `group_by(split(".")[0:2] | join("."))` - Group by major.minor (1.33.x, 1.32.x...)
+3. `.[1][0]` - Take first version from second group (latest 1.32.x)
+4. `// .[0][0]` - Fallback to latest if only one minor exists
+
+---
+
 ## Terraform Setup
 
 ### Provider Configuration

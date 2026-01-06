@@ -31,6 +31,23 @@ When adding applications, search in this order:
 3. Profile type? (cluster or add-on)
 4. What packs? (use `spectrocloud-common` skill for discovery)
 
+**For edge-native profiles, determine K8s version FIRST:**
+- Use `spectrocloud-common` skill's "K8s Version Discovery" section
+- Default to **n-1 minor** (e.g., 1.32.x when 1.33 is latest) for stability
+- Query before asking user - present the recommended version
+
+```bash
+# Quick check: Get recommended K8s version for edge profiles
+PACK_NAME="edge-k3s"  # or edge-k8s for kubeadm
+K8S_VERSION=$((for OFFSET in 0 50 100 150; do
+  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
+    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
+done) | jq -s '[.[] | select(.status.disabled != true) | .spec.version] | unique |
+  sort_by(split(".") | map(tonumber)) | reverse |
+  group_by(split(".")[0:2] | join(".")) | .[1][0] // .[0][0]')
+echo "Recommended: $K8S_VERSION"
+```
+
 **ALWAYS get the latest version of each pack** unless the user specifies a version. Use the Version Selection query below for EVERY pack.
 
 ## MANDATORY: Pack Values Workflow

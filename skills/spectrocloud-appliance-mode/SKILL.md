@@ -39,9 +39,34 @@ earthly bootstrap
 
 **Ask the user:**
 1. Registry for provider images? (ttl.sh for testing, or specify)
-2. K8s version? (default: n-1 minor with kubeadm)
+2. K8s distribution? (k3s, rke2, kubeadm, kubeadm-fips)
 3. 2-node deployment? (requires K3s + TWO_NODE=true)
 4. Need content bundles for offline?
+
+### Step 0: Determine K8s Version
+
+**Query CanvOS for supported versions before building.** Default to n-1 minor for stability.
+
+```bash
+# Get latest CanvOS tag
+CANVOS_TAG=$(gh api repos/spectrocloud/CanvOS/tags --jq '.[0].name')
+echo "Latest CanvOS: $CANVOS_TAG"
+
+# Fetch supported K8s versions
+curl -s "https://raw.githubusercontent.com/spectrocloud/CanvOS/$CANVOS_TAG/k8s_version.json" > k8s_versions.json
+
+# Get n-1 minor for chosen distribution (default: k3s)
+DISTRO="k3s"  # or: rke2, kubeadm, kubeadm-fips
+K8S_VERSION=$(jq -r --arg d "$DISTRO" '.[$d] |
+  sort_by(split(".") | map(tonumber)) | reverse |
+  group_by(split(".")[0:2] | join(".")) | .[1][0] // .[0][0]' k8s_versions.json)
+echo "Recommended $DISTRO version: $K8S_VERSION"
+
+# Show all available for reference
+jq -r --arg d "$DISTRO" '.[$d] | sort_by(split(".") | map(tonumber)) | reverse | .[0:5] | join(", ")' k8s_versions.json
+```
+
+**Use this K8S_VERSION in Step 1's .arg file.**
 
 ### Step 1: Clone and Configure
 
@@ -56,11 +81,12 @@ LATEST_TAG=$(git describe --tags --abbrev=0)
 echo "Using CanvOS $LATEST_TAG"
 git checkout "$LATEST_TAG"
 
-cat << 'EOF' > .arg
+# Use K8S_VERSION from Step 0, or set manually
+cat << EOF > .arg
 OS_DISTRIBUTION=ubuntu
 OS_VERSION=24.04
-K8S_DISTRIBUTION=kubeadm
-K8S_VERSION=1.33.4
+K8S_DISTRIBUTION=${DISTRO:-k3s}
+K8S_VERSION=${K8S_VERSION:-1.32.9}
 IMAGE_REGISTRY=ttl.sh
 IMAGE_REPO=my-edge-images
 CUSTOM_TAG=demo
