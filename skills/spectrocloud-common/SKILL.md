@@ -220,7 +220,8 @@ K8S_VERSION=$((for OFFSET in 0 50 100 150; do
     -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
 done) | jq -s '[.[] | select(.status.disabled != true) | .spec.version] | unique |
   sort_by(split(".") | map(tonumber)) | reverse |
-  group_by(split(".")[0:2] | join(".")) | .[1][0] // .[0][0]')
+  group_by(split(".")[0:2] | join(".")) |
+  sort_by(.[0] | split(".") | map(tonumber)) | reverse | .[1][0] // .[0][0]')
 echo "Recommended K8s version: $K8S_VERSION"
 ```
 
@@ -244,7 +245,8 @@ curl -s "https://raw.githubusercontent.com/spectrocloud/CanvOS/$CANVOS_TAG/k8s_v
 DISTRO="k3s"
 K8S_VERSION=$(jq -r --arg d "$DISTRO" '.[$d] |
   sort_by(split(".") | map(tonumber)) | reverse |
-  group_by(split(".")[0:2] | join(".")) | .[1][0] // .[0][0]' k8s_versions.json)
+  group_by(split(".")[0:2] | join(".")) |
+  sort_by(.[0] | split(".") | map(tonumber)) | reverse | .[1][0] // .[0][0]' k8s_versions.json)
 echo "Recommended $DISTRO version: $K8S_VERSION"
 ```
 
@@ -267,10 +269,11 @@ curl -s "https://raw.githubusercontent.com/spectrocloud/CanvOS/$CANVOS_TAG/k8s_v
 ### n-1 Minor Logic Explained
 
 The jq filter:
-1. `sort_by(split(".") | map(tonumber)) | reverse` - Sort versions descending (1.33.6, 1.33.5, 1.32.9...)
-2. `group_by(split(".")[0:2] | join("."))` - Group by major.minor (1.33.x, 1.32.x...)
-3. `.[1][0]` - Take first version from second group (latest 1.32.x)
-4. `// .[0][0]` - Fallback to latest if only one minor exists
+1. `sort_by(split(".") | map(tonumber)) | reverse` - Sort versions descending
+2. `group_by(split(".")[0:2] | join("."))` - Group by major.minor
+3. `sort_by(.[0] | split(".") | map(tonumber)) | reverse` - Re-sort groups by version (group_by doesn't preserve order)
+4. `.[1][0]` - Take first version from second group (n-1 minor)
+5. `// .[0][0]` - Fallback to latest if only one minor exists
 
 ---
 

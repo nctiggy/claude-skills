@@ -59,7 +59,8 @@ curl -s "https://raw.githubusercontent.com/spectrocloud/CanvOS/$CANVOS_TAG/k8s_v
 DISTRO="k3s"  # or: rke2, kubeadm, kubeadm-fips
 K8S_VERSION=$(jq -r --arg d "$DISTRO" '.[$d] |
   sort_by(split(".") | map(tonumber)) | reverse |
-  group_by(split(".")[0:2] | join(".")) | .[1][0] // .[0][0]' k8s_versions.json)
+  group_by(split(".")[0:2] | join(".")) |
+  sort_by(.[0] | split(".") | map(tonumber)) | reverse | .[1][0] // .[0][0]' k8s_versions.json)
 echo "Recommended $DISTRO version: $K8S_VERSION"
 
 # Show all available for reference

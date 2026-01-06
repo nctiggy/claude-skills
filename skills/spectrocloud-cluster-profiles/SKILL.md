@@ -44,7 +44,8 @@ K8S_VERSION=$((for OFFSET in 0 50 100 150; do
     -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
 done) | jq -s '[.[] | select(.status.disabled != true) | .spec.version] | unique |
   sort_by(split(".") | map(tonumber)) | reverse |
-  group_by(split(".")[0:2] | join(".")) | .[1][0] // .[0][0]')
+  group_by(split(".")[0:2] | join(".")) |
+  sort_by(.[0] | split(".") | map(tonumber)) | reverse | .[1][0] // .[0][0]')
 echo "Recommended: $K8S_VERSION"
 ```
 
