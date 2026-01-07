@@ -97,7 +97,18 @@ values = file("pack-values-modified.yaml")
 | Bitnami | `helm` |
 | Palette Community Registry | `oci` |
 
-**BYOOS Pack (edge-native-byoi)**: Uses OCI registry type → `type = "oci"`. Profile creation fails with "PackType 'pack' is not matching with registry type 'oci'" if wrong.
+**BYOOS Pack (edge-native-byoi)**: Exists in TWO registries with different types:
+- **Public Repo** (5eecc89d0b150045ae661cef) → `type = "spectro"` (recommended)
+- **Palette Community Registry** (64eaff453040297344bcad5d) → `type = "oci"`
+
+**Always use latest BYOOS version** (currently 2.1.0). Query to confirm:
+```bash
+curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=edge-native-byoi&limit=50" \
+  -H "ApiKey: $API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
+  sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[0] | {version: .spec.version, uid: .metadata.uid}'
+```
+
+Profile creation fails with "PackType 'X' is not matching with registry type 'Y'" if type doesn't match registry.
 
 Mismatch causes: `PackType 'pack' is not matching with registry type 'oci'`
 

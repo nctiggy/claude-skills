@@ -406,6 +406,21 @@ curl -k -X POST ".../qemu/<VMID>/status/start" ...
 
 **CRITICAL**: Reboot and reset do NOT reliably apply boot order changes. You MUST do a full power off then power on.
 
+## BYOOS Pack Version
+
+**Always use the latest BYOOS pack version** when creating cluster profiles. As of Jan 2025, this is **2.1.0**.
+
+Query to confirm latest:
+```bash
+curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=edge-native-byoi&limit=50" \
+  -H "ApiKey: $API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
+  sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[0].spec.version'
+```
+
+**Registry note**: BYOOS exists in two registries. Use **Public Repo** (type=`spectro`) for Terraform/API:
+- Public Repo UID: `5eecc89d0b150045ae661cef`
+- Type in Terraform: `type = "spectro"` (NOT "oci")
+
 ## Provider Image Tag
 
 **Don't assume the tag format** - CanvOS generates tags based on `.arg` values but **includes Kairos version, not OS version**:

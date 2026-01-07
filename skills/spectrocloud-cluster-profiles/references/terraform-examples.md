@@ -1,5 +1,7 @@
 # Terraform Examples for Cluster Profiles
 
+**CRITICAL**: You MUST use complete pack values fetched from the API. Partial or empty values cause validation failures. Always use `file()` to load complete pack values from external YAML files. See main SKILL.md "MANDATORY: Pack Values Workflow" section.
+
 ## Standalone Profiles Module
 
 **Use this structure** so profiles can be managed independently from clusters.
@@ -45,13 +47,13 @@ data "spectrocloud_pack" "byoos" {
 
 data "spectrocloud_pack" "k3s" {
   name         = "edge-k3s"
-  version      = "1.33.3"
+  version      = "1.32.9"  # n-1 minor for stability
   registry_uid = data.spectrocloud_registry.public_repo.id
 }
 
 data "spectrocloud_pack" "calico" {
   name         = "cni-calico"
-  version      = "3.28.2"
+  version      = "3.29.1"
   registry_uid = data.spectrocloud_registry.public_repo.id
 }
 
@@ -135,7 +137,7 @@ data "spectrocloud_registry" "bitnami" {
 # Standard pack from Public Repo
 data "spectrocloud_pack" "calico" {
   name         = "cni-calico"
-  version      = "3.28.2"
+  version      = "3.29.1"
   registry_uid = data.spectrocloud_registry.public_repo.id
 }
 
@@ -156,6 +158,8 @@ data "spectrocloud_pack" "harbor" {
 
 ## Infrastructure Profile
 
+**Always use `file()` to load complete pack values** - never use inline partial values:
+
 ```hcl
 resource "spectrocloud_cluster_profile" "edge_infra" {
   name    = "edge-infra"
@@ -169,32 +173,28 @@ resource "spectrocloud_cluster_profile" "edge_infra" {
     uid          = data.spectrocloud_pack.byoos.id
     registry_uid = data.spectrocloud_registry.public_repo.id
     type         = "spectro"
-    values       = <<-EOT
-      options:
-        system.uri: "NA"
-    EOT
+    # Complete values with system.uri modified for agent mode
+    values       = file("${path.module}/pack-values/byoos.yaml")
   }
 
   pack {
     name         = "edge-k3s"
-    tag          = "1.30.5"
+    tag          = "1.32.9"
     uid          = data.spectrocloud_pack.k3s.id
     registry_uid = data.spectrocloud_registry.public_repo.id
     type         = "spectro"
-    values       = <<-EOT
-      cluster:
-        config: |
-          cluster-cidr: 100.64.0.0/18
-          service-cidr: 100.64.64.0/18
-    EOT
+    # Complete values with CIDRs modified
+    values       = file("${path.module}/pack-values/k3s.yaml")
   }
 
   pack {
     name         = "cni-calico"
-    tag          = "3.28.2"
+    tag          = "3.29.1"
     uid          = data.spectrocloud_pack.calico.id
     registry_uid = data.spectrocloud_registry.public_repo.id
     type         = "spectro"
+    # Complete values from API
+    values       = file("${path.module}/pack-values/calico.yaml")
   }
 }
 ```
@@ -272,10 +272,8 @@ resource "spectrocloud_cluster_profile" "helm_addon" {
     uid          = data.spectrocloud_pack.harbor.id
     registry_uid = data.spectrocloud_registry.bitnami.id
     type         = "helm"
-    values       = <<-EOT
-      pack:
-        namespace: harbor
-    EOT
+    # Complete values from API with namespace modified
+    values       = file("${path.module}/pack-values/harbor.yaml")
   }
 }
 ```

@@ -1,6 +1,17 @@
 # API Examples for Cluster Profiles
 
+**CRITICAL**: You MUST fetch complete default values for each pack before creating profiles. Empty or partial values cause validation failures. See main SKILL.md "MANDATORY: Pack Values Workflow" section.
+
 ## Create Infrastructure Profile
+
+**Before running**: Fetch complete values for each pack:
+```bash
+# For each pack, get its UID and fetch complete values
+PACK_UID="<from-pack-discovery>"
+curl -s "https://api.spectrocloud.com/v1/packs/$PACK_UID?includePackValues=true" \
+  -H "ApiKey: $PALETTE_API_KEY" | jq -r '.packValues[0].values' > pack-values.yaml
+# Modify pack-values.yaml as needed, then use entire content in "values" field
+```
 
 ```bash
 curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
@@ -22,25 +33,25 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
             "uid": "<pack-uid>",
             "registryUid": "<registry-uid>",
             "type": "spectro",
-            "values": "options:\n  system.uri: \"NA\""
+            "values": "<COMPLETE-BYOOS-VALUES-WITH-system.uri-MODIFIED>"
           },
           {
             "name": "edge-k3s",
             "layer": "k8s",
-            "tag": "1.30.5",
+            "tag": "1.32.9",
             "uid": "<pack-uid>",
             "registryUid": "<registry-uid>",
             "type": "spectro",
-            "values": ""
+            "values": "<COMPLETE-K3S-VALUES-WITH-CIDRs-MODIFIED>"
           },
           {
             "name": "cni-calico",
             "layer": "cni",
-            "tag": "3.28.2",
+            "tag": "3.29.1",
             "uid": "<pack-uid>",
             "registryUid": "<registry-uid>",
             "type": "spectro",
-            "values": ""
+            "values": "<COMPLETE-CALICO-VALUES>"
           }
         ]
       }
