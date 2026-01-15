@@ -382,6 +382,21 @@ See `references/cicd-workflow.md` for GitHub Actions and GitLab CI examples.
 | Stale ISO used | List ISOs on hypervisor, delete old ones, re-upload versioned ISO |
 | Storage pool too small | 100GB disk leaves ~2.5GB free - increase disk or add data disk |
 | Cluster stuck Provisioning, no nodes | VMs likely in install loop - check boot order and power cycle |
+| user-data changes not applied | Regenerate userdata: `kairos-agent notify agent.bootstrap` (see below) |
+
+### User-Data and /oem Directory
+
+All `#cloud-config` files in `/oem` are merged to generate `/run/stylus/userdata`. If you modify files in `/oem`, regenerate userdata:
+
+```bash
+# On the edge node - regenerates /run/stylus/userdata from /oem files
+kairos-agent notify agent.bootstrap
+```
+
+**Use cases:**
+- Debugging user-data issues: check `/run/stylus/userdata` for merged result
+- Adding config post-install: place files in `/oem/*.yaml`, then regenerate
+- Troubleshooting registration: verify stylus config in `/run/stylus/userdata`
 
 ### Fixing Install Loop (Boot Order)
 
