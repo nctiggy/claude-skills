@@ -188,8 +188,19 @@ curl -s -X POST "https://api.spectrocloud.com/v1/clusterprofiles?publish=true" \
 ```
 
 ### List Profile Versions
+
+**Note**: Profile listing also paginates at 50 results. Use offset parameter for projects with many profiles.
+
 ```bash
-curl -s "https://api.spectrocloud.com/v1/clusterprofiles?filters=metadata.name=PROFILE_NAME" \
+# List all profiles (with pagination)
+(for OFFSET in 0 50 100; do
+  curl -s "https://api.spectrocloud.com/v1/clusterprofiles?limit=50&offset=$OFFSET" \
+    -H "ApiKey: $PALETTE_API_KEY" \
+    -H "ProjectUid: $PROJECT_UID" | jq '.items[]'
+done) | jq -s '[.[] | {name: .metadata.name, uid: .metadata.uid, version: .spec.version}]'
+
+# Filter by name (still use pagination if many versions)
+curl -s "https://api.spectrocloud.com/v1/clusterprofiles?filters=metadata.name=PROFILE_NAME&limit=50" \
   -H "ApiKey: $PALETTE_API_KEY" \
   -H "ProjectUid: $PROJECT_UID" | \
   jq '[.items[] | {name: .metadata.name, uid: .metadata.uid, version: .spec.version}]'
