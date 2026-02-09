@@ -223,13 +223,11 @@ Set up environment variables for both tenants:
 # Source tenant
 export SRC_API_KEY="<source-tenant-api-key>"
 export SRC_PROJECT_UID="<source-project-uid>"
-export SRC_HOST="api.spectrocloud.com"  # or your self-hosted URL
-
+export SRC_HOST="api.spectrocloud.com"
 # Destination tenant
 export DST_API_KEY="<destination-tenant-api-key>"
 export DST_PROJECT_UID="<destination-project-uid>"
-export DST_HOST="api.spectrocloud.com"  # or your self-hosted URL
-
+export DST_HOST="api.spectrocloud.com"
 # Profile to clone
 export PROFILE_UID="<profile-uid-to-clone>"
 ```
@@ -269,12 +267,7 @@ done) | jq -s --arg ver "$PACK_VERSION" '
   {uid: .metadata.uid, registryUid: .spec.registryUid, type: .spec.type}')
 
 echo "$PACK_NAME:$PACK_VERSION -> $RESOLVED"
-```
-
-**Build a mapping file** with all resolved packs:
-```bash
-# Create pack-mappings.json with structure:
-# { "pack-name:version": { "uid": "...", "registryUid": "...", "type": "..." }, ... }
+# Build pack-mappings.json: { "pack-name:version": { "uid": "...", "registryUid": "...", "type": "..." }, ... }
 ```
 
 ### Step 4: Transform Profile JSON
@@ -318,18 +311,7 @@ curl -s -X POST "https://$DST_HOST/v1/clusterprofiles?publish=true" \
 Before importing, verify:
 - [ ] All packs exist in destination tenant (Step 3 resolved all packs)
 - [ ] Pack versions match exactly (or update to available versions)
-- [ ] BYOOS `system.uri` updated if it references tenant-specific registry URLs
-
-### BYOOS Pack Warning
-
-If cloning profiles with BYOOS packs (appliance mode), the `system.uri` value references a container registry URL that may be tenant-specific. Update it manually:
-
-```bash
-# Check for BYOOS packs
-jq '.spec.template.packs[] | select(.name == "edge-native-byoi") | .values' profile-import.json
-
-# If system.uri points to source tenant's registry, update it for destination
-```
+- [ ] BYOOS `system.uri` updated if it references tenant-specific registry URLs (check with `jq '.spec.template.packs[] | select(.name == "edge-native-byoi") | .values' profile-import.json`)
 
 ## Troubleshooting
 
