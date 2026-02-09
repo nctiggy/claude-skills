@@ -421,6 +421,19 @@ curl -k -X POST ".../qemu/<VMID>/status/start" ...
 
 **CRITICAL**: Reboot and reset do NOT reliably apply boot order changes. You MUST do a full power off then power on.
 
+## BYOOS Pack: Edge vs Agent Mode
+
+The BYOOS pack is the **ONLY mode-specific pack** in an edge infrastructure profile. When cloning profiles from Reference Architectures, verify you're using the **edge** variant (e.g., `VMO-RA-Infra-Edge-*`), not the agent variant (`VMO-RA-Infra-Agent-*`).
+
+See `spectrocloud-cluster-profiles` skill → "BYOOS Pack Values: Agent vs Edge Mode" for the full comparison (system.uri, containerd paths, spectro.slice).
+
+**Quick check** — if your BYOOS pack values contain any of these, it's agent mode and WRONG for appliance deployments:
+- `system.uri: "NA"`
+- `/var/lib/spectro/containerd`
+- `/run/spectro/containerd`
+- `/opt/bin/runc`
+- `spectro.slice`
+
 ## BYOOS Pack Version
 
 **Always use the latest BYOOS pack version** when creating cluster profiles. As of Jan 2025, this is **2.1.0**.
