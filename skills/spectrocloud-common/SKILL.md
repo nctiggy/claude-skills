@@ -30,10 +30,6 @@ All API calls require `PALETTE_API_KEY` and `PROJECT_UID` environment variables.
 ### Get Credentials
 
 ```bash
-# Using 1Password CLI (if configured)
-export PALETTE_API_KEY=$(op read "op://<your-vault>/palette-api-key/credential")
-
-# Or set directly
 export PALETTE_API_KEY="<your-api-key>"
 ```
 
@@ -285,7 +281,7 @@ terraform {
 
 provider "spectrocloud" {
   host    = var.palette_host      # "api.spectrocloud.com" for SaaS
-  api_key = var.palette_api_key   # From 1Password or env var
+  api_key = var.palette_api_key   # From env var or secret store
 
   # Optional: project_name to scope all resources
   # project_name = "my-project"
@@ -306,7 +302,7 @@ variable "palette_api_key" {
 palette_api_key = "your-api-key"
 
 # Or use environment variable:
-# export TF_VAR_palette_api_key=$(op read "op://<your-vault>/palette-api-key/credential")
+# export TF_VAR_palette_api_key="your-api-key"
 ```
 
 ### Modular Structure (Recommended)

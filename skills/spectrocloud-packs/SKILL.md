@@ -200,36 +200,17 @@ Syncs secrets from external stores (1Password, AWS, Vault, etc.).
 **Registry**: Public Repo
 **Type**: `spectro`
 
-**1Password Integration:**
+**Usage:**
 
-1. Create 1Password Connect credentials
-2. Deploy operator with this config:
+1. Deploy operator with this config:
 ```yaml
 # Pack values
 installCRDs: true
 ```
 
-3. After operator deploys, create SecretStore:
-```yaml
-apiVersion: external-secrets.io/v1beta1
-kind: ClusterSecretStore
-metadata:
-  name: onepassword
-spec:
-  provider:
-    onepassword:
-      connectHost: http://onepassword-connect:8080
-      vaults:
-        my-vault: 1  # Vault ID
-      auth:
-        secretRef:
-          connectTokenSecretRef:
-            name: op-credentials
-            namespace: external-secrets
-            key: 1password-credentials.json
-```
+2. After operator deploys, create a `ClusterSecretStore` for your backend (AWS Secrets Manager, HashiCorp Vault, 1Password, etc.) — see [ESO provider docs](https://external-secrets.io/latest/provider/aws-secrets-manager/).
 
-4. Create ExternalSecret to sync:
+3. Create ExternalSecret to sync:
 ```yaml
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
@@ -238,21 +219,20 @@ metadata:
 spec:
   refreshInterval: 1h
   secretStoreRef:
-    name: onepassword
+    name: my-secret-store
     kind: ClusterSecretStore
   target:
     name: my-k8s-secret
   data:
     - secretKey: password
       remoteRef:
-        key: my-1password-item
+        key: my-secret-item
         property: password
 ```
 
 **Gotchas:**
-- 1Password Connect server must be deployed separately
-- Connect token is different from CLI token
-- Vault names are case-sensitive
+- Backend-specific credentials must be configured before SecretStore works
+- Secret key names and paths are case-sensitive
 
 ---
 
