@@ -180,7 +180,7 @@ echo "Built: $ISO_NAME"
 # Check ISO build date (should match your recent build)
 ls -la build/*.iso
 
-# If uploading to Proxmox, include version in the storage name
+# When uploading to hypervisor, include version in the storage name
 # e.g., "palette-edge-k3s-1.30.5-20241222-1430.iso"
 ```
 
@@ -248,19 +248,11 @@ earthly +iso
 - [ ] Old ISOs cleaned up from hypervisor storage
 - [ ] Old edge hosts deleted from Palette (prevents duplicate ID errors)
 
-### Proxmox Upload
-```bash
-# Upload versioned ISO to Proxmox
-PROXMOX_HOST="<proxmox-ip-or-hostname>"
-ISO_PATH="/path/to/palette-edge-k3s-1.30.5-20241222.iso"
-scp "$ISO_PATH" root@$PROXMOX_HOST:/var/lib/vz/template/iso/
+### Upload ISO to Hypervisor
 
-# List ISOs on Proxmox to verify and clean up old ones
-ssh root@$PROXMOX_HOST "ls -la /var/lib/vz/template/iso/palette-*.iso"
-
-# Remove stale ISOs (keep only latest)
-ssh root@$PROXMOX_HOST "rm /var/lib/vz/template/iso/palette-edge-OLD*.iso"
-```
+Upload the versioned ISO to your hypervisor's ISO storage (e.g., via SCP, web UI, or API). After uploading:
+- Verify the correct versioned ISO is present
+- Remove stale ISOs to avoid accidentally booting old builds
 
 ### VM Creation
 
@@ -272,11 +264,7 @@ ssh root@$PROXMOX_HOST "rm /var/lib/vz/template/iso/palette-edge-OLD*.iso"
 | With separate data disk | 100GB + data disk | Attach second disk for storage pool |
 
 **Boot order is critical:**
-```
-# Proxmox boot order format:
-boot: order=scsi0;ide2;net0
-```
-- Disk first (`scsi0`), then CD-ROM (`ide2`)
+- Disk first, then CD-ROM
 - Empty disk falls through to CD on first boot
 - After install, boots from disk (avoids reinstall loop)
 - **Wrong order** = reinstall loop or hang
@@ -284,7 +272,7 @@ boot: order=scsi0;ide2;net0
 **VM creation steps:**
 1. Create VM: 4+ CPU, 8GB+ RAM, disk sized for use case
 2. Attach the **versioned** ISO (verify name before attaching)
-3. Set boot order: `order=scsi0;ide2;net0`
+3. Set boot order: disk first, then CD-ROM
 4. Boot - installation is automatic
 5. Verify in Palette: Clusters > Edge Hosts > Registered
 
@@ -406,21 +394,9 @@ kairos-agent notify agent.bootstrap
 **Cause**: Boot order is `ide2;scsi0` (CD-ROM first) instead of `scsi0;ide2` (disk first).
 
 **Fix**:
-```bash
-# 1. Change boot order via Proxmox API
-curl -k -X PUT "https://<PROXMOX>:8006/api2/json/nodes/proxmox/qemu/<VMID>/config" \
-  -H "Cookie: PVEAuthCookie=${TICKET}" \
-  -H "CSRFPreventionToken: ${CSRF}" \
-  --data-urlencode "boot=order=scsi0;ide2;net0"
-
-# 2. MUST power off completely (not reboot/reset!)
-curl -k -X POST ".../qemu/<VMID>/status/stop" ...
-
-# 3. Wait for VM to stop, then power on
-curl -k -X POST ".../qemu/<VMID>/status/start" ...
-```
-
-**CRITICAL**: Reboot and reset do NOT reliably apply boot order changes. You MUST do a full power off then power on.
+1. Change boot order to disk first, then CD-ROM via your hypervisor's UI or API
+2. **Full power off** (not reboot/reset!) — boot order changes may not apply on soft reboot
+3. Power on after VM is fully stopped
 
 ## BYOOS Pack: Edge vs Agent Mode
 
@@ -481,7 +457,7 @@ crane ls ttl.sh/$IMAGE_REPO
 | ISO output | `build/palette-edge-installer.iso` (rename with version!) |
 | Versioned ISO | `palette-edge-<K8S_VERSION>-<YYYYMMDD-HHMM>.iso` |
 | Image tag | Check `docker images` after build - use exact tag |
-| Proxmox boot order | `boot: order=scsi0;ide2;net0` |
+| VM boot order | Disk first, then CD-ROM |
 | SSH access | kairos / kairos |
 
 ## Additional Resources

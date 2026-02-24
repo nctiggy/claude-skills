@@ -219,7 +219,7 @@ If anything fails or is unclear, write to ./learnings.md
 
 ### Phase 3: VMs [Main or Agent]
 
-1. Upload versioned ISO to Proxmox
+1. Upload versioned ISO to hypervisor
 2. Create 2 VMs: 4+ CPU, 8GB+ RAM, 150GB+ disk
 3. Boot order: `order=scsi0;ide2;net0` (disk first!)
 4. Boot VMs, wait for edge hosts in Palette
