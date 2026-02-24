@@ -11,7 +11,7 @@ Shared utilities for all Palette API operations. Reference this skill for projec
 
 **For meeting prep / demo setup, follow this order:**
 
-1. **Get credentials** → Check 1Password for `palette-api-key`, set `PALETTE_API_KEY`
+1. **Get credentials** → Retrieve `palette-api-key` from your secret store, set `PALETTE_API_KEY`
 2. **Get project** → **ALWAYS ASK** user for project name, then look up `PROJECT_UID`. Never assume or infer.
 3. **Discover existing resources** → List profiles, clusters, edge hosts
 4. **Decide what to create/update** → Present findings to user
@@ -27,20 +27,13 @@ Shared utilities for all Palette API operations. Reference this skill for projec
 
 All API calls require `PALETTE_API_KEY` and `PROJECT_UID` environment variables.
 
-### Get Credentials from 1Password
+### Get Credentials
 
-**Preferred method** - Use 1Password CLI or MCP tools:
 ```bash
-# Using op CLI (if user has 1Password configured)
-export PALETTE_API_KEY=$(op read "op://k8s vault/palette-api-key/credential")
+# Using 1Password CLI (if configured)
+export PALETTE_API_KEY=$(op read "op://<your-vault>/palette-api-key/credential")
 
-# Or ask Claude to use MCP tools:
-# - mcp__subtle-bug__op_list_items to find the secret
-# - mcp__subtle-bug__op_inject_secret to retrieve it
-```
-
-**Manual method** (less preferred):
-```bash
+# Or set directly
 export PALETTE_API_KEY="<your-api-key>"
 ```
 
@@ -313,7 +306,7 @@ variable "palette_api_key" {
 palette_api_key = "your-api-key"
 
 # Or use environment variable:
-# export TF_VAR_palette_api_key=$(op read "op://k8s vault/palette-api-key/credential")
+# export TF_VAR_palette_api_key=$(op read "op://<your-vault>/palette-api-key/credential")
 ```
 
 ### Modular Structure (Recommended)

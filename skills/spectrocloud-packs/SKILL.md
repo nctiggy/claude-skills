@@ -220,7 +220,7 @@ spec:
     onepassword:
       connectHost: http://onepassword-connect:8080
       vaults:
-        k8s vault: 1  # Vault ID
+        my-vault: 1  # Vault ID
       auth:
         secretRef:
           connectTokenSecretRef:

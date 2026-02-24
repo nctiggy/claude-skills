@@ -251,14 +251,15 @@ earthly +iso
 ### Proxmox Upload
 ```bash
 # Upload versioned ISO to Proxmox
+PROXMOX_HOST="<proxmox-ip-or-hostname>"
 ISO_PATH="/path/to/palette-edge-k3s-1.30.5-20241222.iso"
-scp "$ISO_PATH" root@172.18.0.4:/var/lib/vz/template/iso/
+scp "$ISO_PATH" root@$PROXMOX_HOST:/var/lib/vz/template/iso/
 
 # List ISOs on Proxmox to verify and clean up old ones
-ssh root@172.18.0.4 "ls -la /var/lib/vz/template/iso/palette-*.iso"
+ssh root@$PROXMOX_HOST "ls -la /var/lib/vz/template/iso/palette-*.iso"
 
 # Remove stale ISOs (keep only latest)
-ssh root@172.18.0.4 "rm /var/lib/vz/template/iso/palette-edge-OLD*.iso"
+ssh root@$PROXMOX_HOST "rm /var/lib/vz/template/iso/palette-edge-OLD*.iso"
 ```
 
 ### VM Creation
@@ -292,7 +293,7 @@ boot: order=scsi0;ide2;net0
 For environments with a dedicated build machine, automate the entire process:
 
 ```bash
-BUILD_HOST="ubuntu@subtle-bug.maas"  # Or your build machine
+BUILD_HOST="<user>@<build-machine>"  # Your build machine hostname or IP
 
 # Clone, configure, and build in one session
 ssh $BUILD_HOST << 'ENDSSH'
