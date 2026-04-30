@@ -78,7 +78,7 @@ READ `references/colors.md` for the full palette with hex codes, RGB, CMYK, Pant
 | **Gold Leaf** | `#F0BE65` | Warm accent, highlights |
 | **Sunset Orange** | `#B94B01` | Warm accent, callouts |
 | **Soft Lilac** | `#7E5C8E` | Palette product accent |
-| **Paper** | `#F7F1ED` | Brand background (warm cream) |
+| **Paper** | `#F7F1ED` | Brand background (warm cream) — NEVER use `#fff`/white as page background |
 | **Ink** | `#012121` | Brand text (deep teal-black) |
 
 ### Product Colors
@@ -132,6 +132,7 @@ SVG logo files are in `assets/`. Key variants:
 - Minimum size: 75px wide (horizontal), 36px wide (vertical)
 - Clearspace: equal to the full height of the word "Spectro" on all sides
 - Do NOT: recreate, recolor, rotate, distort, add effects, place on busy backgrounds, alter typeface
+- **AI tools MUST use the provided SVG files** — never substitute text, initials, shapes, or placeholder graphics for the Strata mark
 
 ### Inline SVG Notes
 

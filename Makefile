@@ -1,4 +1,4 @@
-.PHONY: init build upload upload-all sync sync-project validate clean list list-remote help
+.PHONY: init build upload upload-all sync sync-project validate clean list list-remote flatten help
 
 SKILL ?=
 SKILLS_DIR := skills
@@ -17,6 +17,8 @@ help:
 	@echo "  make sync-project         Symlink skills to .claude/skills"
 	@echo "  make validate             Validate all skills"
 	@echo "  make validate SKILL=name  Validate specific skill"
+	@echo "  make flatten              Flatten all skills to dist/flattened/"
+	@echo "  make flatten SKILL=name   Flatten specific skill"
 	@echo "  make list                 List all local skills"
 	@echo "  make list-remote          List skills on Anthropic API"
 	@echo "  make clean                Remove dist/"
@@ -76,6 +78,13 @@ list:
 
 list-remote:
 	@python $(SCRIPTS_DIR)/upload_skill.py --list
+
+flatten:
+ifdef SKILL
+	@python3 $(SCRIPTS_DIR)/flatten_skill.py $(SKILLS_DIR)/$(SKILL)
+else
+	@python3 $(SCRIPTS_DIR)/flatten_skill.py --all
+endif
 
 clean:
 	@rm -rf $(DIST_DIR)

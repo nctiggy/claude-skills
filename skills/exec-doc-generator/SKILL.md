@@ -24,6 +24,9 @@ Build polished, executive-grade 2-page PDF documents as HTML files rendered via 
 3. **Page structure** uses flex column with `min-height: 100vh` and footer with `margin-top: auto`
 4. **Letter size** with tight margins: `@page { size: letter; margin: 12px 22px; }`
 5. **Print-safe colors** — always set `-webkit-print-color-adjust: exact`
+6. **Body background MUST be `var(--paper)` (`#F7F1ED`)** — the warm cream Paper tone is a core brand element. NEVER use `#FFFFFF` or `white` as the body/page background. White is only for card surfaces (`--surface`).
+7. **`@media print` block is REQUIRED** — must include `break-inside: avoid` on `.stat-card`, `.track-card`, `.scope-banner`, `.success-box`, and `break-after: avoid` on `.section-title`. Without this, components split across page boundaries.
+8. **Font import MUST use `<link>` tag** in `<head>`, NOT `@import` inside `<style>`. `@import` causes font loading failures in Puppeteer PDF rendering.
 
 ### Spectro Cloud Brand
 
@@ -44,7 +47,7 @@ READ the `spectrocloud-brand` skill for the complete 2025 brand palette, design 
 | Role | Purpose | Example (banking customer) |
 |------|---------|---------------------------|
 | `--primary` | Headers, stat numbers, borders | Deep navy `#0A1628` |
-| `--primary-mid` | Secondary elements, badges | Mid navy `#162D50` |
+| `--primary-mid` | Secondary elements, badges — **MUST differ from `--primary`** | Mid navy `#162D50` |
 | `--accent` | Highlights, decorative accents | Gold `#C5963A` |
 | `--teal` | Spectro Cloud identity (always present) | `#1F7A78` |
 | `--green` | Success/positive indicators | `#1A7A4C` |
@@ -53,6 +56,10 @@ READ the `spectrocloud-brand` skill for the complete 2025 brand palette, design 
 | `--surface` | Card backgrounds | White |
 | `--border` | Card/table borders | Light gray `#D0D5DD` |
 | `--text-dim` | Secondary text | Muted gray `#4A5568` |
+
+**Color enforcement rules:**
+- `--primary-mid` MUST be visibly different from `--primary`. If the customer has only one dark color, lighten it 15-20% for `--primary-mid` (e.g., darken `#1B3A4B` → mid `#2C5F7A`). Never set them identical.
+- `--paper` MUST always be `#F7F1ED`. `--teal` MUST always be `#1F7A78`. These are Spectro Cloud brand constants.
 
 Also define glow variants for subtle backgrounds:
 - `--accent-glow: rgba(accent, 0.10)`
@@ -70,7 +77,7 @@ Use the SC palette directly: `--primary: #043736`, `--accent: #F0BE65`, `--teal:
 
 ### Typography
 
-- **Font:** Plus Jakarta Sans (Google Fonts) — always include the import. Fallback: Trebuchet MS
+- **Font:** Plus Jakarta Sans via `<link>` tag (NOT `@import`). Font stack: `'Plus Jakarta Sans', 'Trebuchet MS', -apple-system, sans-serif`
 - **Brand weight hierarchy:** ExtraLight (200) for display headlines, Medium (500) for subheads, Regular (400) for body, Light (300) for quotes
 - **Exec doc weight hierarchy** (compact 2-page format needs heavier weights for legibility at small sizes): 800 for h1/stats, 700 for section titles, 600 for labels, 400 for body
 - **Sizes:** h1: 24px, section titles: 10px uppercase, body: 10-11px, labels: 9px, fine print: 8px
@@ -92,6 +99,14 @@ READ the `references/components.md` file for the full HTML/CSS component pattern
 10. **Timeline** — Horizontal timeline with dots and gradient connector
 11. **Callout** — Bordered text box for next steps or key info
 12. **Verdict Cards** — Icon + text cards for key decisions
+
+### Required CSS Classes (do not invent new ones)
+
+Only use these class names — they are defined in `references/components.md`:
+
+`.page` `.page-break` `.container` `.header` `.header-inner` `.logo-row` `.logo-text` `.logo-divider` `.badge` `.section-title` `.stat-grid` `.stat-card` `.stat-number` `.stat-label` `.stat-detail` `.dc-strip` `.dc-strip-item` `.dc-name` `.dc-hosts` `.dc-label` `.dc-vms` `.dc-badge` `.dc-badge-active` `.dc-badge-migrate` `.hw-table` `.scope-banner` `.scope-pills` `.scope-pill` `.track-grid` `.track-card` `.track-card-header` `.track-card-body` `.dot-navy` `.dot-accent` `.dot-teal` `.icon-wrap` `.stack-strip` `.stack-strip-item` `.stack-icon` `.stack-label` `.stack-desc` `.integration-row` `.int-pill` `.int-dot` `.success-box` `.timeline` `.timeline-step` `.tl-dot` `.tl-label` `.tl-desc` `.verdict` `.verdict-icon` `.callout` `.page-footer` `.footer-left` `.footer-right` `.footer-page`
+
+Track cards MUST use a dot color class (`dot-navy`, `dot-accent`, or `dot-teal`) on the `.track-card-body` div. Without it, bullets have no visible styling.
 
 ### Page Footer Pattern
 
@@ -136,6 +151,10 @@ The SVG wordmark uses `currentcolor`, so set `color` on the parent to control th
 **Two logo SVG variants (both in `assets/`):**
 - **Footer (light background):** `spectrocloud-logo-horizontal.svg` — Strata mark in brand teals, wordmark in `currentcolor` (set `color: var(--ink)`)
 - **Header (dark background):** `spectrocloud-logo-horizontal-knockout-white.svg` — Official knockout white, all paths `fill="#fff"`. This is the approved asset from the Spectro Brand 2025 Google Drive.
+
+**Logo enforcement:** The header logo-row MUST include the knockout white SVG. Do NOT substitute text, initials, badges, or placeholder graphics for the Strata mark. "Do not try to recreate the logo" is an explicit brand rule.
+
+**Footer text enforcement:** Footer left text MUST be `Confidential — Prepared for [Customer] Leadership`. Do NOT use page descriptions, document titles, or other text in the footer-left position.
 
 See `references/components.md` for the full inline SVG in both header and footer patterns.
 

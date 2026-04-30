@@ -115,12 +115,17 @@ jobs:
             git push
           fi
 
+      - name: Flatten skills for cross-AI use
+        run: python3 scripts/flatten_skill.py --all
+
       - name: Upload artifacts
         if: steps.determine-skills.outputs.skills != ''
         uses: actions/upload-artifact@v4
         with:
           name: packaged-skills
-          path: dist/*.skill
+          path: |
+            dist/*.skill
+            dist/flattened/*.flat.md
           retention-days: 30
 
   release:
