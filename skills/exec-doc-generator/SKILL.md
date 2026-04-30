@@ -152,7 +152,11 @@ Use the inline SVG logo (from `assets/spectrocloud-logo-horizontal.svg`). The SV
 </div>
 ```
 
-The SVG wordmark uses `currentcolor`, so set `color` on the parent to control the text portion. The Strata mark always renders in the brand teals. For dark header backgrounds, use `style="color: #fff"` on the SVG. The full SVG source is in `assets/spectrocloud-logo-horizontal.svg`.
+The SVG wordmark uses `currentcolor`, so set `color` on the parent to control the text portion. The full SVG source is in `assets/spectrocloud-logo-horizontal.svg`.
+
+**Two logo variants:**
+- **Footer (light background):** Use `color: var(--ink)` — the Strata mark keeps its brand teal fills (#1F7A78, #043736, #005B5B)
+- **Header (dark background):** Use `color: #fff` and change the Strata mark paths to `fill="currentcolor"` with `opacity` on the fold/shadow layers (0.6 and 0.7) to preserve depth. See the header example in `references/components.md` for the full white variant.
 
 ### Easter Egg (REQUIRED)
 
