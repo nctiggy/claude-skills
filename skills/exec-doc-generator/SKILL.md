@@ -25,38 +25,17 @@ Build polished, executive-grade 2-page PDF documents as HTML files rendered via 
 4. **Letter size** with tight margins: `@page { size: letter; margin: 12px 22px; }`
 5. **Print-safe colors** — always set `-webkit-print-color-adjust: exact`
 
-### Spectro Cloud Brand Palette (2025 Rebrand)
+### Spectro Cloud Brand
 
-These are the official brand colors. Always use these for Spectro Cloud elements:
+READ the `spectrocloud-brand` skill for the complete 2025 brand palette, design principles, logos, icons, and messaging. Key values for quick reference:
 
-| Name | Hex | Use |
-|------|-----|-----|
-| **Tranquil Teal** | `#1F7A78` | Primary brand color, logo, SC identity |
-| Dark Teal | `#005B5B` | Darker teal variant |
-| Darkest Teal | `#043736` | Deep teal for contrast |
-| **Tea Green** | `#9EB277` | Secondary brand, softer accents |
-| **Gold Leaf** | `#F0BE65` | Warm accent, highlights |
-| Dark Gold | `#DE8D2A` | Deeper gold variant |
-| **Sunset Orange** | `#B94B01` | Warm accent, callouts |
-| Dark Orange | `#851A01` | Deep orange variant |
-| **Soft Lilac** | `#7E5C8E` | Used with Palette product |
-| Dark Lilac | `#441647` | Deep lilac variant |
-| **Paper** | `#F7F1ED` | Brand background — warm cream, NOT cool gray |
-| **Ink** | `#012121` | Brand text color — deep teal-black |
-| Neutral light | `#E0DCD7` | Borders, subtle dividers |
-| Neutral mid | `#9E9C9C` | Secondary text |
-| Neutral dark | `#3C4949` | Strong secondary text |
-
-### Brand Design Principles
-
-The 2025 rebrand is built around **the fold** — inspired by origami:
-
-- **Geometric shapes** — clean, crisp lines; no cartoons or off-the-shelf illustrations
-- **Folded ribbon motif** — diagonal elements at **38.5°** to match the logo angle
-- **Calm, zen palette** — warm teals, greens, golds; NOT the old blue/purple space theme
-- **Open space** — generous whitespace, neat layouts
-- **Tessellations and patterns** — repeating geometric patterns evoke Cluster Profiles
-- **Mature, enterprise tone** — no rough edges, no startup energy; trusted platform
+| Token | Hex | Role |
+|-------|-----|------|
+| Tranquil Teal | `#1F7A78` | SC identity, `--teal` |
+| Paper | `#F7F1ED` | Brand background, `--paper` |
+| Ink | `#012121` | Brand text, `--ink` |
+| Gold Leaf | `#F0BE65` | Warm accent |
+| Tea Green | `#9EB277` | Soft accent |
 
 ### Color Scheme Strategy
 
