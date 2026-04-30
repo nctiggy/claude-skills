@@ -11,7 +11,7 @@ Full HTML/CSS patterns for building 2-page executive documents. All CSS goes inl
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>[Customer] + Spectro Cloud — [Doc Title]</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   @page { size: letter; margin: 12px 22px; }
 
@@ -23,17 +23,17 @@ Full HTML/CSS patterns for building 2-page executive documents. All CSS goes inl
     --accent: #C5963A;
     --accent-light: #D4AA5C;
     --accent-dim: #A67C2E;
-    /* Standard colors — keep these */
-    --ink: #0F1B2D;
-    --paper: #F5F6F8;
+    /* Standard colors — Spectro Cloud 2025 brand */
+    --ink: #012121;
+    --paper: #F7F1ED;
     --surface: #FFFFFF;
     --border: #D0D5DD;
     --text-dim: #4A5568;
     --accent-glow: rgba(197, 150, 58, 0.10);
     --accent-glow-strong: rgba(197, 150, 58, 0.18);
     --primary-glow: rgba(10, 22, 40, 0.06);
-    --teal: #0D7377;
-    --teal-glow: rgba(13, 115, 119, 0.08);
+    --teal: #1F7A78;
+    --teal-glow: rgba(31, 122, 120, 0.08);
     --green: #1A7A4C;
     --green-glow: rgba(26, 122, 76, 0.08);
     --red: #B83230;
@@ -154,7 +154,7 @@ Gradient banner at top of page 1. Contains logo row, badge, title, and summary p
     <div class="logo-row">
       <div class="logo-text">[Customer Name]</div>
       <div class="logo-divider"></div>
-      <img src="https://cdn.prod.website-files.com/64105dfa8da6a9f617932c6c/675aeef4ffab12597b98eb85_SpectroCloud_Horizontal_light-bkgd_RGB.png" alt="Spectro Cloud" style="height: 18px; filter: brightness(0) invert(1);">
+      <!-- Use inline SVG from assets/spectrocloud-logo-horizontal.svg with style="color: #fff; height: 18px;" -->
     </div>
     <div class="badge">[Badge Text] &mdash; [Quarter/Year]</div>
     <h1>[Title Line 1]<br>[Title Line 2] <span>[Accent Word]</span></h1>
@@ -426,24 +426,44 @@ Bordered text box for next steps or important notes.
 
 ## 14. Page Footer
 
+Use the inline SVG logo from `assets/spectrocloud-logo-horizontal.svg`. The SVG uses `currentcolor` for the wordmark — set `color` on the footer SVG to control it (e.g., `color: var(--ink)`). The Strata mark always renders in brand teals.
+
 ```css
 .page-footer {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 34px 0; border-top: 2px solid var(--primary-mid); margin-top: auto;
+  padding: 8px 34px 0; border-top: 2px solid var(--teal); margin-top: auto;
 }
 .page-footer .footer-left { font-size: 9px; color: var(--text-dim); }
 .page-footer .footer-right { display: flex; align-items: center; gap: 10px; }
 .page-footer .footer-page { font-size: 8px; font-weight: 700; color: var(--primary-mid); letter-spacing: 0.05em; text-transform: uppercase; }
-.page-footer img { height: 14px; opacity: 0.5; }
+.page-footer svg { height: 14px; opacity: 0.6; color: var(--ink); }
 ```
 
 ## Customer Brand Color Examples
 
 | Customer | Primary | Accent | Notes |
 |----------|---------|--------|-------|
+| **SC-only** | `#043736` dark teal | `#F0BE65` gold leaf | Use for SC-branded docs without customer co-branding |
 | Bank OZK | `#0A1628` navy | `#C5963A` gold | Banking = conservative, professional |
 | GlobalFoundries | `#43007A` purple | `#FF6012` orange | Semiconductor = bold, technical |
 | Toyota | `#CC0000` red | `#1A1A1A` black | Automotive = strong, confident |
 | Taco Bell | `#702082` purple | `#E4002B` magenta | QSR = vibrant, energetic |
 | PayPal | `#003087` blue | `#009CDE` light blue | Fintech = trustworthy, modern |
 | Blue Yonder | `#0033A0` blue | `#00B0F0` cyan | Supply chain = clean, precise |
+
+## Spectro Cloud 2025 Brand Palette Reference
+
+Primary palette (use for SC elements):
+- Tranquil Teal: `#1F7A78` / Dark: `#005B5B` / Darkest: `#043736`
+- Tea Green: `#9EB277` / Dark: `#5D823C`
+- Gold Leaf: `#F0BE65` / Dark: `#DE8D2A` / Darkest: `#851A01`
+- Sunset Orange: `#B94B01`
+- Soft Lilac: `#7E5C8E` / Dark: `#441647`
+
+Overlap palette (where brand colors meet in folded graphics):
+- Teal + Gold: `#175B17`
+- Teal + Orange: `#062305`
+- Orange + Gold: `#AD3805`
+- Teal + Green: `#1E5434`
+
+Neutrals: Paper `#F7F1ED` → `#E0DCD7` → `#BEB9B6` → `#9E9C9C` → `#3C4949` → `#1E3332` → Ink `#012121`
