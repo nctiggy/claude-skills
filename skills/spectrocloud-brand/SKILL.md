@@ -186,10 +186,15 @@ SVG icons from the brand guide are in `assets/icons/`. These are the official br
 | GitFork | `GitFork.svg` | Git ops, branching, development |
 | Envelope | `Envelope.svg` | Communication, email |
 
-Additional icons available in the Brand Drive `Guide assets/Icons/` folder (not yet downloaded):
-Shuffle, SealCheck, Sparkle, Sliders, Fingerprint, SlackLogo, GoogleDriveLogo
+| Shuffle | `Shuffle.svg` | Versatility, interconnection |
+| SealCheck | `SealCheck.svg` | Trusted platform, certification |
+| Sparkle | `Sparkle.svg` | Innovation, new features |
+| Sliders | `Sliders.svg` | Configuration, control |
+| Fingerprint | `Fingerprint.svg` | Security, identity |
 
-These icons use brand teal (`#1F7A78`) fills with Tea Green (`#9EB277`) opacity backgrounds. When using inline, they work at 32x32 viewBox.
+Additional icons available in the Brand Drive `Guide assets/Icons/` folder (not yet downloaded): SlackLogo, GoogleDriveLogo
+
+These icons use brand teal (`#1F7A78`) fills with Tea Green (`#9EB277`) opacity backgrounds. All are 32x32 viewBox.
 
 ## Google Drive Brand Assets
 
