@@ -123,7 +123,7 @@ Use the inline SVG logo (from `assets/spectrocloud-logo-horizontal.svg`). The SV
   <div class="footer-left">Confidential — Prepared for [Customer] Leadership</div>
   <div class="footer-right">
     <div class="footer-page">Page N of 2</div>
-    <svg xmlns="http://www.w3.org/2000/svg" width="74" height="28" viewBox="0 0 148 57" fill="none" style="color: var(--ink);">
+    <svg xmlns="http://www.w3.org/2000/svg" width="74" height="28" viewBox="0 0 148 57" fill="none" fill-rule="evenodd" style="color: var(--ink);">
       <!-- Strata mark (brand teals) -->
       <path d="M21.4869 56.089L0.948352 39.9029C-0.142452 39.0427-0.142452 37.3902 0.948352 36.53L21.4869 20.3058C22.6074 19.4202 24.1863 19.4202 25.3068 20.3058L45.8453 36.53C46.9361 37.3902 46.9361 39.0427 45.8453 39.9029L25.3068 56.089C24.1905 56.9703 22.6116 56.9703 21.4911 56.089H21.4869Z" fill="#1F7A78"/>
       <path d="M45.8029 36.5088L24.9333 20.0812C23.9358 19.2931 22.7007 18.8651 21.4274 18.8651L1.74201 18.8312C0.880403 18.8312 0.447477 18.6744 0.260725 18.0854C0.163104 18.3524 0.12915 18.6066 0.12915 18.8015C0.12915 19.1956 0.226771 19.9371 0.978025 20.5346L21.8476 36.9791C22.8493 37.7673 24.0844 38.1952 25.3577 38.1995L45.094 38.2164C45.9175 38.2249 46.3419 38.3859 46.5202 38.9579C46.6178 38.691 46.6517 38.4367 46.6517 38.2418C46.6517 37.8435 46.5541 37.102 45.8029 36.5088Z" fill="#043736"/>
@@ -209,6 +209,39 @@ Each page MUST be wrapped:
   border-top: 2px solid var(--teal);
 }
 ```
+
+## Puppeteer Rendering Gotchas
+
+### Emoji Centering
+
+Emojis have inconsistent vertical metrics across fonts/platforms in Puppeteer. When using emojis as icons (e.g., in track card headers, verdict cards, stack strips), wrap them in a flex container with explicit sizing:
+
+```css
+.icon-wrap {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; line-height: 1;
+  flex-shrink: 0;
+}
+```
+
+Do NOT rely on `vertical-align` or bare emoji text for alignment. Always use a flex centering wrapper. For circular icon backgrounds, add `border-radius: 50%; background: var(--accent-glow);` to the wrapper.
+
+### SVG Letter Counters (fill-rule)
+
+Letters with enclosed counters (p, o, e, d, b, a, g, etc.) have separate outer and inner paths both filled with `currentcolor`. In Puppeteer/Chrome, both paths render as solid fill, making the "holes" disappear (e.g., the hole in "o" fills solid).
+
+**Fix:** Add `fill-rule="evenodd"` to the parent `<svg>` element. This tells the renderer to use even-odd winding, which correctly cuts out the inner paths as holes.
+
+```html
+<!-- WRONG — letters render as solid blobs -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 148 57" fill="none">
+
+<!-- CORRECT — letter counters render properly -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 148 57" fill="none" fill-rule="evenodd">
+```
+
+This applies to the Spectro Cloud logo SVG and any other inline SVGs with text paths.
 
 ## PDF Generation
 
