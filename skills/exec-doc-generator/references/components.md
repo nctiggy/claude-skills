@@ -441,6 +441,8 @@ Use the inline SVG logo from `assets/spectrocloud-logo-horizontal.svg`. The SVG 
 .page-footer .footer-right { display: flex; align-items: center; gap: 10px; }
 .page-footer .footer-page { font-size: 8px; font-weight: 700; color: var(--primary-mid); letter-spacing: 0.05em; text-transform: uppercase; }
 .page-footer svg { height: 14px; opacity: 0.6; color: var(--ink); }
+/* Footer SVG MUST be spectrocloud-logo-horizontal-currentcolor.svg (501x192 viewBox, compound paths).
+   Do NOT use the old 148x57 website SVG — letter counters render solid in Puppeteer. */
 ```
 
 ## Customer Brand Color Examples
