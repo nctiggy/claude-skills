@@ -154,9 +154,11 @@ Use the inline SVG logo (from `assets/spectrocloud-logo-horizontal.svg`). The SV
 
 The SVG wordmark uses `currentcolor`, so set `color` on the parent to control the text portion. The full SVG source is in `assets/spectrocloud-logo-horizontal.svg`.
 
-**Two logo variants:**
-- **Footer (light background):** Use `color: var(--ink)` — the Strata mark keeps its brand teal fills (#1F7A78, #043736, #005B5B)
-- **Header (dark background):** Use `color: #fff` and change the Strata mark paths to `fill="currentcolor"` with `opacity` on the fold/shadow layers (0.6 and 0.7) to preserve depth. See the header example in `references/components.md` for the full white variant.
+**Two logo SVG variants (both in `assets/`):**
+- **Footer (light background):** `spectrocloud-logo-horizontal.svg` — Strata mark in brand teals, wordmark in `currentcolor` (set `color: var(--ink)`)
+- **Header (dark background):** `spectrocloud-logo-horizontal-knockout-white.svg` — Official knockout white, all paths `fill="#fff"`. This is the approved asset from the Spectro Brand 2025 Google Drive.
+
+See `references/components.md` for the full inline SVG in both header and footer patterns.
 
 ### Easter Egg (REQUIRED)
 
