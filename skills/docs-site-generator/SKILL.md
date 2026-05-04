@@ -44,8 +44,14 @@ Every generated site follows this directory layout:
 docs-site/
 ├── mkdocs.yml              # or docusaurus.config.js
 ├── docs/
-│   ├── index.md            # Landing / overview
+│   ├── index.md            # Landing / overview (with co-branded logos)
 │   ├── getting-started.md  # Quick start guide
+│   ├── assets/
+│   │   └── images/
+│   │       ├── spectrocloud-logo.png        # SC logo for landing page
+│   │       ├── spectrocloud-logo-white.svg  # SC logo for nav header
+│   │       ├── favicon.png                  # SC favicon
+│   │       └── customer-logo.svg            # Customer logo for landing page
 │   ├── architecture/
 │   │   ├── index.md        # Architecture overview
 │   │   └── components.md   # Component deep-dives
@@ -56,19 +62,32 @@ docs-site/
 │   ├── troubleshooting/
 │   │   ├── index.md        # Common issues
 │   │   └── runbooks.md     # Step-by-step runbooks
+│   ├── overrides/          # MkDocs theme overrides (inside docs/)
+│   │   └── stylesheets/
+│   │       └── brand.css   # Brand color overrides
 │   └── reference/
 │       ├── index.md        # Reference overview
 │       ├── api.md          # API reference
 │       └── configuration.md
-├── overrides/              # MkDocs theme overrides
-│   └── stylesheets/
-│       └── brand.css       # Brand color overrides
 └── static/                 # Docusaurus static assets
     └── css/
         └── brand.css
 ```
 
 Adapt sections to the project. Not every site needs all sections. Omit what is irrelevant.
+
+### Required Logo Assets
+
+Always include these files in `docs/assets/images/`:
+
+| File | Purpose |
+|------|---------|
+| `spectrocloud-logo-white.svg` | Header nav logo (set in `theme.logo`) |
+| `spectrocloud-logo.png` | Landing page co-branding |
+| `favicon.png` | Spectro Cloud favicon (set in `theme.favicon`) |
+| `customer-logo.svg` (or `.png`) | Customer logo for landing page co-branding |
+
+Source the Spectro Cloud logos from the `spectrocloud-brand` skill or existing project assets. Request or locate the customer logo as needed.
 
 ## File Naming Conventions
 
@@ -88,7 +107,9 @@ site_url: https://docs.example.com
 
 theme:
   name: material
-  custom_dir: overrides
+  custom_dir: docs/overrides
+  logo: assets/images/spectrocloud-logo-white.svg
+  favicon: assets/images/favicon.png
   font:
     text: Plus Jakarta Sans
     code: JetBrains Mono
@@ -96,8 +117,16 @@ theme:
     - scheme: default
       primary: custom
       accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   features:
-    - navigation.tabs
     - navigation.sections
     - navigation.expand
     - navigation.top
@@ -107,7 +136,7 @@ theme:
     - content.tabs.link
 
 extra_css:
-  - stylesheets/brand.css
+  - overrides/stylesheets/brand.css
 
 markdown_extensions:
   - admonition
@@ -148,7 +177,7 @@ nav:
     - Configuration: reference/configuration.md
 ```
 
-### MkDocs Brand CSS (`overrides/stylesheets/brand.css`)
+### MkDocs Brand CSS (`docs/overrides/stylesheets/brand.css`)
 
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap');
@@ -204,6 +233,13 @@ nav:
 .md-footer {
   background-color: #043736;
   color: #F7F1ED;
+}
+
+/* Dark mode */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #1a1a2e;
+  --md-default-fg-color: #e0e0e0;
+  --md-code-bg-color: #2d2d44;
 }
 ```
 
@@ -334,11 +370,19 @@ Use Markdown tables for structured data. Align columns for readability in source
 
 ### index.md (Landing Page)
 
+Always include co-branded logos at the top of the landing page showing the customer logo alongside the Spectro Cloud logo:
+
 ```markdown
 ---
 title: Project Name
 description: Overview of the project documentation
 ---
+
+<div style="display: flex; align-items: center; justify-content: center; gap: 40px; margin: 20px 0 40px 0;">
+  <img src="assets/images/customer-logo.svg" alt="Customer Name" style="height: 60px;">
+  <span style="font-size: 2em; color: #BEB9B6;">+</span>
+  <img src="assets/images/spectrocloud-logo.png" alt="Spectro Cloud" style="height: 50px;">
+</div>
 
 # Project Name
 
