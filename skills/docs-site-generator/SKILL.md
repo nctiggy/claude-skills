@@ -15,6 +15,8 @@ Generate complete documentation sites as a directory of Markdown files with navi
 - API reference sites with guides
 - Operations and troubleshooting documentation
 
+> **Publishing a prospect-facing POC guide site?** Use the `spectrocloud-poc-docs` skill for the full build→test→publish lifecycle (it composes this skill for theming) — including the Cloudflare Access gating step that must cover the `*.project.pages.dev` preview-URL wildcard, not just the apex hostname.
+
 ## Brand Integration
 
 READ the `spectrocloud-brand` skill for colors, typography, and design principles before generating any themed site. Use the CSS custom properties from `references/colors.md` for all color values.

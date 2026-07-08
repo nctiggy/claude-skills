@@ -1,4 +1,4 @@
-.PHONY: init build upload upload-all sync sync-project validate clean list list-remote flatten help
+.PHONY: init build upload upload-all sync sync-project sync-private validate clean list list-remote flatten help
 
 SKILL ?=
 SKILLS_DIR := skills
@@ -15,6 +15,7 @@ help:
 	@echo "  make upload-all           Upload all skills to API"
 	@echo "  make sync                 Symlink skills to ~/.claude/skills"
 	@echo "  make sync-project         Symlink skills to .claude/skills"
+	@echo "  make sync-private         Symlink private-skills/ (never uploaded) to ~/.claude/skills"
 	@echo "  make validate             Validate all skills"
 	@echo "  make validate SKILL=name  Validate specific skill"
 	@echo "  make flatten              Flatten all skills to dist/flattened/"
@@ -53,6 +54,18 @@ sync:
 
 sync-project:
 	@bash $(SCRIPTS_DIR)/sync_local.sh --project
+
+# private-skills/ sits OUTSIDE skills/ on purpose: deploy.yml's path filter
+# (skills/**) never uploads it. This symlink target is its only distribution.
+sync-private:
+	@mkdir -p $(HOME)/.claude/skills
+	@for skill_dir in private-skills/*/; do \
+		if [ -f "$$skill_dir/SKILL.md" ]; then \
+			name=$$(basename "$$skill_dir"); \
+			ln -sfn "$(CURDIR)/private-skills/$$name" "$(HOME)/.claude/skills/$$name"; \
+			echo "  linked (private): $$name"; \
+		fi \
+	done
 
 validate:
 ifdef SKILL
