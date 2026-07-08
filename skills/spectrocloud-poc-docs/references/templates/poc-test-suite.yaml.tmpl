@@ -1,0 +1,24 @@
+# poc-test-suite.yaml — live-test (T2) manifest for this docs-site.
+# See references/testing.md in the spectrocloud-poc-docs skill for the full spec.
+suite: {{PROJECT}}-phase-1
+
+# Pages executed in order; within a page, annotated blocks run top-to-bottom.
+pages:
+  - docs/phase-1.md
+
+# What the lab adapter must provide. `hosts` are role names the adapter maps to
+# real machines; `env` keys must appear in the adapter's `env` output.
+adapter_requirements:
+  hosts: [node]
+  env: [PALETTE_API_KEY, PROJECT_UID]
+
+# Fixed variables available to subst/assert expressions. Destructive resource
+# names MUST carry the poctest- prefix so lab teardown can find (and only find) them.
+vars:
+  CLUSTER_NAME: poctest-{{PROJECT}}-p1
+
+# Variables that must be supplied at run time: run_doc_tests.py --var KEY=VALUE
+required_vars: []
+
+# always | on-success | never — when to call the adapter's teardown
+teardown: always

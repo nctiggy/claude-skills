@@ -1,0 +1,10 @@
+suite: runner-happy
+pages:
+  - docs/flow.md
+adapter_requirements:
+  hosts: [node]
+  env: [PALETTE_API_KEY, PROJECT_UID]
+vars:
+  SUITE_TAG: mock
+required_vars: []
+teardown: always

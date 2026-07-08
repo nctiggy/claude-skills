@@ -1,0 +1,27 @@
+# Prerequisites
+
+Complete these before starting Phase 1.
+
+## Palette tenant access
+
+- [ ] You can log in at `https://console.spectrocloud.com` (or your dedicated tenant URL)
+- [ ] You have (or can create) a **Palette API key**: **User Menu → API Keys → Add New API Key**
+
+```bash
+export PALETTE_API_KEY=<your-api-key>
+```
+
+## Workstation tooling
+
+```bash
+# macOS: brew install curl jq kubectl   |   Ubuntu: sudo apt-get install -y curl jq
+curl --version && jq --version && kubectl version --client
+```
+
+## Target hardware
+
+!!! note "Fill in per engagement"
+    List the node specs, network requirements (static IPs or DHCP reservations),
+    and firewall/proxy expectations agreed at intake.
+
+**Next:** [Phase 1](phase-1.md)

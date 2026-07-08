@@ -1,0 +1,9 @@
+# Palette project UIDs that lab tooling must NEVER operate on.
+# palette-cleanup.sh and lab-adapter.sh refuse to run when LAB_PROJECT_UID matches
+# a line here (exact match, one UID per line; # comments ignored).
+#
+# Add every production/customer-shared project UID you can reach with your keys.
+# (Names for reference only — the match is on the UID.)
+#
+# <uid>    # e.g. loves production project — FILL IN
+# <uid>    # e.g. toyota staging project — FILL IN

@@ -1,0 +1,43 @@
+# Phase 1 — {{PHASE_TITLE}}
+
+**Goal:** one sentence stating the observable outcome that proves this phase
+(e.g. "a single host self-registers with Palette and becomes a healthy one-node cluster").
+
+```mermaid
+graph TD
+    A[First step] --> B[Second step]
+    B --> C[Verifiable outcome]
+```
+
+!!! warning "Sharp edges"
+    List the 1-3 rules that will bite the reader if ignored, up front.
+    (Example: agent mode supports 1-node or 3+-node clusters only — never 2.)
+
+## Step 1 — First action
+
+=== "Palette UI"
+
+    Describe the UI path: **Tenant Settings → ... → Add New ...**
+
+=== "API"
+
+    <!-- poc-test
+    id: step-1-example
+    host: local
+    -->
+
+    ```bash
+    curl -s "https://api.spectrocloud.com/v1/..." \
+      -H "ApiKey: $PALETTE_API_KEY" | jq '.'
+    ```
+
+## Step 2 — Verify
+
+```bash
+echo "replace with a real verification command"
+```
+
+!!! note "If provisioning stalls"
+    Point to logs / troubleshooting steps (compose from spectrocloud-troubleshooting).
+
+**Next:** the following phase, or [Support & Contacts](reference/support.md).
