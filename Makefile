@@ -31,23 +31,23 @@ init:
 ifndef SKILL
 	$(error SKILL is required. Usage: make init SKILL=my-skill-name)
 endif
-	@python $(SCRIPTS_DIR)/init_skill.py $(SKILL)
+	@python3 $(SCRIPTS_DIR)/init_skill.py $(SKILL)
 
 build:
 ifdef SKILL
-	@python $(SCRIPTS_DIR)/package_skill.py $(SKILLS_DIR)/$(SKILL)
+	@python3 $(SCRIPTS_DIR)/package_skill.py $(SKILLS_DIR)/$(SKILL)
 else
-	@python $(SCRIPTS_DIR)/package_skill.py
+	@python3 $(SCRIPTS_DIR)/package_skill.py
 endif
 
 upload:
 ifndef SKILL
 	$(error SKILL is required. Usage: make upload SKILL=my-skill-name)
 endif
-	@python $(SCRIPTS_DIR)/upload_skill.py $(SKILLS_DIR)/$(SKILL)
+	@python3 $(SCRIPTS_DIR)/upload_skill.py $(SKILLS_DIR)/$(SKILL)
 
 upload-all:
-	@python $(SCRIPTS_DIR)/upload_skill.py --all
+	@python3 $(SCRIPTS_DIR)/upload_skill.py --all
 
 sync:
 	@bash $(SCRIPTS_DIR)/sync_local.sh
@@ -69,11 +69,11 @@ sync-private:
 
 validate:
 ifdef SKILL
-	@python $(SCRIPTS_DIR)/quick_validate.py $(SKILLS_DIR)/$(SKILL)
+	@python3 $(SCRIPTS_DIR)/quick_validate.py $(SKILLS_DIR)/$(SKILL)
 else
 	@for skill_dir in $(SKILLS_DIR)/*/; do \
 		if [ -f "$$skill_dir/SKILL.md" ]; then \
-			python $(SCRIPTS_DIR)/quick_validate.py "$$skill_dir"; \
+			python3 $(SCRIPTS_DIR)/quick_validate.py "$$skill_dir"; \
 		fi \
 	done
 endif
@@ -90,7 +90,7 @@ list:
 	@echo ""
 
 list-remote:
-	@python $(SCRIPTS_DIR)/upload_skill.py --list
+	@python3 $(SCRIPTS_DIR)/upload_skill.py --list
 
 flatten:
 ifdef SKILL
@@ -107,4 +107,4 @@ delete:
 ifndef ID
 	$(error ID is required. Usage: make delete ID=skill_01abc123)
 endif
-	@python $(SCRIPTS_DIR)/upload_skill.py --delete $(ID)
+	@python3 $(SCRIPTS_DIR)/upload_skill.py --delete $(ID)
