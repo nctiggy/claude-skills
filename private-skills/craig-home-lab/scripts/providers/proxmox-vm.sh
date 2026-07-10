@@ -33,6 +33,10 @@ pve() {  # run a command on the pve host (or print it in dry-run)
   ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$PVE" "$@"
 }
 
+# ping timeout flag differs by platform: macOS -t = timeout, Linux -t = TTL (-W = timeout)
+PING_TIMEOUT_FLAG="-W"; [ "$(uname)" = "Darwin" ] && PING_TIMEOUT_FLAG="-t"
+ping_probe() { ping -c1 "$PING_TIMEOUT_FLAG" "$1" "$2" >/dev/null 2>&1; }  # $1=timeout-secs $2=addr
+
 suite_meta() {  # $1=suite.yaml, $2=field (name|roles)
   python3 - "$1" "$2" <<'PY'
 import sys, yaml, re
@@ -79,12 +83,14 @@ case "$CMD" in
     else
       used="$(pve qm list 2>/dev/null | awk 'NR>1{print $1}')"
     fi
+    # Sets NEXT_VMID (no echo/subshell: $(next_vmid) would lose the `used+=`
+    # bookkeeping and hand every role the same VMID).
     next_vmid() {
       local id
       for ((id = VMID_MIN; id <= VMID_MAX; id++)); do
         if ! grep -qx "$id" <<< "$used"; then
           used+=$'\n'"$id"
-          echo "$id"
+          NEXT_VMID="$id"
           return 0
         fi
       done
@@ -99,57 +105,74 @@ case "$CMD" in
       scp -o BatchMode=yes -q "$pubkey_file" "$PVE:$remote_key"
     fi
 
-    declare -A vmid_of addr_of
+    # VLAN-19 static addressing. NOTE: pve has NO route to 172.19 (it's a tagged VM
+    # VLAN), so we cannot learn the IP from the pve side via the guest agent — we
+    # ASSIGN a static IP from a reserved range and probe reachability locally (the
+    # runner routes to 172.19). This also removes the qemu-guest-agent dependency
+    # (stock cloud image doesn't run it).
+    gw="${LAB_VM_GW:-172.19.0.1}"
+    ns="${LAB_VM_NAMESERVER:-8.8.8.8}"
+    ip_prefix="${LAB_VM_IP_PREFIX:-172.19.0}"
+    ip_base_last="${LAB_VM_IP_BASE_LAST:-200}"   # poctest reserved: 172.19.0.200-254
+    declare -A vmid_of addr_of ip_taken
+    idx=0
     for role in "${roles[@]}"; do
-      vmid="$(next_vmid)"
+      next_vmid; vmid="$NEXT_VMID"
       name="poctest-$suite-$role"
       [ "${#name}" -le 63 ] || die "VM name too long: $name"
+      # Pick a free static IP (probe locally; skip probing in dry-run). A ping probe
+      # alone is NOT enough: a sibling VM created seconds ago in this same loop is
+      # still running cloud-init and won't answer ping yet, so its IP would look
+      # "free" — track IPs assigned this run in ip_taken and skip them.
+      last=$((ip_base_last + idx)); vmip=""
+      if [ -n "$DRY" ]; then
+        vmip="$ip_prefix.$last"
+      else
+        while [ "$last" -le 254 ]; do
+          cand="$ip_prefix.$last"
+          [ -n "${ip_taken[$cand]:-}" ] && { last=$((last + 1)); continue; }
+          ping_probe 1 "$cand" && { last=$((last + 1)); continue; }
+          vmip="$cand"; break
+        done
+        [ -n "$vmip" ] || die "no free static IP in $ip_prefix.$ip_base_last-254"
+      fi
+      ip_taken[$vmip]=1
+      # UEFI (ovmf) with Secure Boot NOT enforced — pre-enrolled-keys=1 blocks the
+      # generic cloud image's boot chain under this OVMF (learned 2026-07-09).
+      # Secure-Boot validation belongs to appliance mode (signed CanvOS image).
       pve qm create "$vmid" --name "$name" \
-        --bios ovmf --efidisk0 vm-pool:0,efitype=4m \
+        --bios ovmf --efidisk0 vm-pool:0,efitype=4m,pre-enrolled-keys=0 \
         --cpu host --cores "${LAB_VM_CORES:-4}" --memory "${LAB_VM_MEMORY:-8192}" \
         --numa 0 --ostype l26 --scsihw virtio-scsi-single \
-        --net0 "virtio,bridge=vmbr0,tag=19" --agent 1
+        --net0 "virtio,bridge=vmbr0,tag=19"
       pve qm set "$vmid" --scsi0 "vm-pool:0,import-from=$LAB_CLOUD_IMAGE,iothread=1,backup=0"
       # Cloud-image import locks boot to net0 — MUST re-point at the disk
       # (references/proxmox-vms.md, learned 2026-06-12).
       pve qm set "$vmid" --boot order=scsi0
       pve qm set "$vmid" --ide2 vm-pool:cloudinit --ciuser ubuntu \
-        --sshkeys "$remote_key" --ipconfig0 ip=dhcp
+        --sshkeys "$remote_key" --ipconfig0 "ip=$vmip/24,gw=$gw" --nameserver "$ns"
       pve qm disk resize "$vmid" scsi0 "${LAB_VM_DISK_GROW:-+40G}"
       pve qm start "$vmid"
+      [ -n "$DRY" ] || ssh-keygen -R "$vmip" >/dev/null 2>&1 || true  # reused IPs churn host keys
       vmid_of[$role]="$vmid"
-      addr_of[$role]=""
+      addr_of[$role]="$vmip"
+      idx=$((idx + 1))
     done
 
-    # Wait for qemu-guest-agent to report a VLAN-19 address.
+    # Wait for each VM to become reachable on its assigned static IP. Probe LOCALLY
+    # (the runner routes to 172.19; pve does not), up to ~5 min for cloud-init.
     if [ -n "$DRY" ]; then
-      i=10
       for role in "${roles[@]}"; do
-        addr_of[$role]="192.0.2.$i"   # TEST-NET placeholder in dry-run
-        echo "DRYRUN wait-for-ip vmid=${vmid_of[$role]} role=$role" >&2
-        i=$((i + 1))
+        echo "DRYRUN wait-for-ip vmid=${vmid_of[$role]} role=$role ip=${addr_of[$role]}" >&2
       done
     else
       for role in "${roles[@]}"; do
-        vmid="${vmid_of[$role]}"
+        vmip="${addr_of[$role]}"; ok=""
         for _ in $(seq 1 60); do
-          ip="$(pve qm agent "$vmid" network-get-interfaces 2>/dev/null \
-                | python3 -c '
-import json, sys
-try:
-    ifaces = json.load(sys.stdin)
-except Exception:
-    sys.exit(0)
-for i in ifaces:
-    for a in i.get("ip-addresses") or []:
-        ip = a.get("ip-address", "")
-        if ip.startswith("172.19."):
-            print(ip); sys.exit(0)
-' || true)"
-          [ -n "$ip" ] && { addr_of[$role]="$ip"; break; }
+          ping_probe 2 "$vmip" && { ok=1; break; }
           sleep 5
         done
-        [ -n "${addr_of[$role]}" ] || die "vm $vmid ($role) never reported a 172.19.x address"
+        [ -n "$ok" ] || die "vm ${vmid_of[$role]} ($role) never became reachable at $vmip"
       done
     fi
 
@@ -192,7 +215,9 @@ print(h["user"], h["address"])' "$sf" "$role")
       echo "DRYRUN ssh $user@$addr 'bash -s' < $script" >&2
       exit 0
     fi
-    ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$addr" 'bash -s' < "$script"
+    # Ephemeral throwaway VMs on reused static IPs — don't pollute/conflict known_hosts.
+    ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+      "$user@$addr" 'bash -s' < "$script"
     ;;
 
   teardown)

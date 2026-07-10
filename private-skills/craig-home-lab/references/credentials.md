@@ -40,6 +40,6 @@ OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_K8S_ACCOUNT_TOKEN" op read 'op://k8s/<item
 2. `PROJECT_UID` — from `LAB_PROJECT_UID` (must be exported; the adapter never guesses
    a project, and `references/project-denylist.txt` UIDs are refused).
 
-Proxmox root for the proxmox-vm provider comes from `op read` the same way
-(`LAB_PROXMOX_PW_ITEM` overrides the default Lobster item) — prefer SSH keys where
-installed; the password path is the fallback.
+Proxmox root for the proxmox-vm provider uses SSH key auth only (`ssh -o BatchMode=yes`);
+the provider script does NOT implement a password fallback. A future fallback would
+`op read` via `LAB_PROXMOX_PW_ITEM` (default: the Lobster item) — aspirational, not wired up.

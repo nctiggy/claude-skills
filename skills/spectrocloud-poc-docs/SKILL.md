@@ -46,7 +46,8 @@ Never write a Palette command from memory when one of those skills documents it.
 4. **Static QA (T0/T1, always)** — `scripts/check_docs.py <docs-site>` : mkdocs `--strict`
    build, fence-language lint, internal link + anchor check on built HTML, step-numbering
    check, **secret scan** (no `op://`, private/lab IPs, API keys, internal hostnames in
-   customer docs). Then `scripts/extract_tests.py <docs-site>` lints any test annotations.
+   customer docs). Then `scripts/extract_tests.py --suite <docs-site>/poc-test-suite.yaml`
+   lints the test annotations against the suite.
 5. **Live test (T2, optional but preferred)** — `scripts/run_doc_tests.py` executes the
    annotated blocks in order through a **lab adapter** (see the adapter contract in
    `references/testing.md`; a mock adapter ships in `scripts/adapters/mock/`). A site that

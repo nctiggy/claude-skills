@@ -101,10 +101,10 @@ values = file("pack-values-modified.yaml")
 - **Public Repo** (5eecc89d0b150045ae661cef) → `type = "spectro"` (recommended)
 - **Palette Community Registry** (64eaff453040297344bcad5d) → `type = "oci"`
 
-**Always use latest BYOOS version** (currently 2.1.0). Query to confirm:
+**Always use the latest BYOOS version** - never hardcode it. Query to confirm:
 ```bash
 curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=edge-native-byoi&limit=50" \
-  -H "ApiKey: $API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
+  -H "ApiKey: $PALETTE_API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
   sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[0] | {version: .spec.version, uid: .metadata.uid}'
 ```
 
@@ -214,104 +214,74 @@ curl -s -X DELETE "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID"
 
 ## Cross-Tenant Profile Cloning
 
-Clone profiles between different Palette tenants. Pack UIDs and registry UIDs differ between tenants, so a simple export/import won't work - you must resolve pack references in the destination tenant.
+Clone profiles between different Palette tenants. Pack UIDs and registry UIDs differ between tenants, so a simple export/import won't work - you must resolve every pack reference in the destination tenant before importing.
 
-### Prerequisites
+**See `references/cross-tenant-cloning.md`** for the full 5-step procedure: export from source, extract pack references, resolve pack UIDs in the destination, transform the profile JSON with jq, and import. Includes the validation checklist (packs exist in destination, versions match, BYOOS `system.uri` updated for the destination registry).
 
-Set up environment variables for both tenants:
-```bash
-# Source tenant
-export SRC_API_KEY="<source-tenant-api-key>"
-export SRC_PROJECT_UID="<source-project-uid>"
-export SRC_HOST="api.spectrocloud.com"
-# Destination tenant
-export DST_API_KEY="<destination-tenant-api-key>"
-export DST_PROJECT_UID="<destination-project-uid>"
-export DST_HOST="api.spectrocloud.com"
-# Profile to clone
-export PROFILE_UID="<profile-uid-to-clone>"
+## Pack Install Priority (CRITICAL for Multi-Profile Deployments)
+
+Palette deploys packs in parallel by default. When packs have dependencies (e.g., VMO CRDs must exist before VM templates), you MUST set install priority to enforce ordering.
+
+### How It Works
+
+Install priority is set via the `pack.spectrocloud.com/install-priority` annotation in pack values YAML. Lower numbers install first. Packs with the same priority install in parallel.
+
+```yaml
+pack:
+  namespace: my-namespace
+  spectrocloud.com/install-priority: "10"
+charts:
+  ...
 ```
 
-### Step 1: Export Profile from Source Tenant
+### Manifest Packs Too
 
-```bash
-curl -s "https://$SRC_HOST/v1/clusterprofiles/$PROFILE_UID" \
-  -H "ApiKey: $SRC_API_KEY" \
-  -H "ProjectUid: $SRC_PROJECT_UID" > profile-export.json
+Manifest-type packs (no helm chart, just raw YAML) also support install-priority via the `values` field. This is easy to miss when exporting profiles — the API returns values separately from manifest content.
 
-# Verify export
-jq '{name: .metadata.name, version: .spec.version, packs: [.spec.published.packs[] | {name, tag, layer}]}' profile-export.json
+**Terraform example for manifest pack with install-priority:**
+```hcl
+pack {
+  name   = "vmo-storage"
+  type   = "manifest"
+  values = "pack:\n  spectrocloud.com/install-priority: \"40\""
+
+  manifest {
+    name    = "storageprofile-cdi"
+    content = file("${path.module}/manifests/storageprofile-cdi.yaml")
+  }
+}
 ```
 
-### Step 2: Extract Pack References
+### Common Priority Scheme (VMO Reference Architecture)
 
+| Priority | Packs | Why |
+|----------|-------|-----|
+| (none) | Infra packs (BYOOS, K8s, CNI, CSI) | Installed by infrastructure layer, not addon ordering |
+| 10 | MetalLB, nginx | Base networking — no dependencies |
+| 20 | Prometheus/Grafana | Needs MetalLB for LoadBalancer IPs |
+| 30 | VMO (KubeVirt, CDI, Multus) | Installs CRDs needed by templates |
+| 40 | Template manifests (storage profiles, NADs, golden images, VM templates) | Depends on VMO CRDs |
+| 50 | VMA (VM Migration Assistant) | Depends on VMO being fully operational |
+
+### Export/Clone Gotcha
+
+**When exporting or cloning profiles, ALWAYS check for install-priority in pack values.** The API returns it in the `values` field of each pack, but it's easy to overlook — especially for manifest packs where you might only extract the manifest content and skip the values entirely.
+
+**Verification query:**
 ```bash
-# List packs that need resolution in destination tenant
-jq -r '.spec.published.packs[] | "\(.name):\(.tag)"' profile-export.json
+curl -s "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID" \
+  -H "ApiKey: $PALETTE_API_KEY" -H "ProjectUid: $PROJECT_UID" | \
+  jq '[.spec.published.packs[] | {name: .name, priority: ((.values // "") | capture("install-priority: \"(?<v>[^\"]+)\"") | .v // "none")}]'
 ```
 
-### Step 3: Resolve Packs in Destination Tenant
+### Creating New Profiles
 
-For **each pack** from Step 2, resolve its UID in the destination tenant:
+When building new profiles (not cloning), think about pack dependencies:
+- Does this pack install CRDs that other packs consume? → Give it a lower priority number
+- Does this pack create resources using CRDs from another pack? → Give it a higher priority number
+- Are packs independent? → Same priority (parallel install) or no priority needed
 
-```bash
-# Resolve a single pack (repeat for each pack)
-PACK_NAME="edge-k3s"
-PACK_VERSION="1.32.9"
-
-RESOLVED=$((for OFFSET in 0 50 100 150; do
-  curl -s "https://$DST_HOST/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
-    -H "ApiKey: $DST_API_KEY" | jq '.items[]'
-done) | jq -s --arg ver "$PACK_VERSION" '
-  [.[] | select(.status.disabled != true and .spec.version == $ver)] | .[0] |
-  {uid: .metadata.uid, registryUid: .spec.registryUid, type: .spec.type}')
-
-echo "$PACK_NAME:$PACK_VERSION -> $RESOLVED"
-# Build pack-mappings.json: { "pack-name:version": { "uid": "...", "registryUid": "...", "type": "..." }, ... }
-```
-
-### Step 4: Transform Profile JSON
-
-Replace source tenant UIDs with destination tenant UIDs:
-
-```bash
-# Transform profile with resolved pack mappings
-jq --slurpfile mappings pack-mappings.json '
-  # Remove source-specific fields
-  del(.metadata.uid, .status, .spec.published) |
-
-  # Use draft as template
-  .spec.template = .spec.draft |
-  del(.spec.draft) |
-
-  # Update each pack with destination UIDs
-  .spec.template.packs = [.spec.template.packs[] |
-    . as $pack |
-    ($mappings[0]["\($pack.name):\($pack.tag)"] // null) as $resolved |
-    if $resolved then
-      .uid = $resolved.uid |
-      .registryUid = $resolved.registryUid
-    else . end
-  ]
-' profile-export.json > profile-import.json
-```
-
-### Step 5: Import to Destination Tenant
-
-```bash
-curl -s -X POST "https://$DST_HOST/v1/clusterprofiles?publish=true" \
-  -H "ApiKey: $DST_API_KEY" \
-  -H "ProjectUid: $DST_PROJECT_UID" \
-  -H "Content-Type: application/json" \
-  -d @profile-import.json | jq '{uid: .uid, name: .metadata.name}'
-```
-
-### Validation Checklist
-
-Before importing, verify:
-- [ ] All packs exist in destination tenant (Step 3 resolved all packs)
-- [ ] Pack versions match exactly (or update to available versions)
-- [ ] BYOOS `system.uri` updated if it references tenant-specific registry URLs (check with `jq '.spec.template.packs[] | select(.name == "edge-native-byoi") | .values' profile-import.json`)
+**If you skip install-priority:** Packs deploy in parallel and manifests referencing CRDs that don't exist yet will fail with "no matches for kind" errors. The Palette reconciler will retry, but it's slow and unreliable compared to proper ordering.
 
 ## Troubleshooting
 
@@ -334,80 +304,15 @@ Before importing, verify:
 
 ## BYOOS Pack Values: Agent vs Edge Mode
 
-The BYOOS (edge-native-byoi) pack is the **ONLY mode-specific pack** in a Palette Edge infrastructure profile. All other packs (K8s, CNI, storage) and all add-on profiles are mode-agnostic.
-
-### Three Differences Between Agent and Edge Mode
+The BYOOS (edge-native-byoi) pack is the **ONLY mode-specific pack** in a Palette Edge infrastructure profile. All other packs (K8s, CNI, storage) and all add-on profiles are mode-agnostic. Three things differ between the modes:
 
 | Config Area | Agent Mode | Edge/Appliance Mode |
 |-------------|-----------|-------------------|
-| `options.system.uri` | `"NA"` | Go template with sub-options (see below) |
+| `options.system.uri` | `"NA"` | Go template with sub-options |
 | Containerd config | Spectro-specific paths | System defaults (no root/state/grpc/BinaryName) |
 | Initramfs commands | `spectro.slice` + `system.slice` | `system.slice` only |
 
-**Why they differ:** Agent mode runs a Spectro-managed containerd alongside the system containerd, so it needs custom paths (`/var/lib/spectro/containerd`, `/run/spectro/containerd`, `/opt/bin/runc`) and a separate `spectro.slice` for CPU isolation. Edge/appliance mode uses the OS-native containerd baked into the provider image.
-
-### Agent Mode options block
-```yaml
-options:
-  system.uri: "NA"
-```
-
-### Edge/Appliance Mode options block
-```yaml
-options:
-    system.uri: "{{ .spectro.pack.edge-native-byoi.options.system.registry }}/{{ .spectro.pack.edge-native-byoi.options.system.repo }}:{{ .spectro.pack.edge-native-byoi.options.system.k8sDistribution }}-{{ .spectro.system.kubernetes.version }}-{{ .spectro.pack.edge-native-byoi.options.system.peVersion }}-{{ .spectro.pack.edge-native-byoi.options.system.customTag }}"
-    system.registry: my-registry.company.local
-    system.repo: ubuntu
-    system.k8sDistribution: kubeadm
-    system.osName: ubuntu
-    system.peVersion: v4.5.11
-    system.customTag: my-custom-tag
-    system.osVersion: 24.04
-
-# providerCredentials:
-#   registry: my-registry.company.local
-#   user: "user"
-#   password: ""
-```
-
-**Note:** Edge options use 4-space indentation (not 2-space). This matches the API's stored format.
-
-### Agent Mode containerd config (REMOVE these for edge)
-```toml
-root = "/var/lib/spectro/containerd"
-state = "/run/spectro/containerd"
-[grpc]
-  address = "/run/spectro/containerd/containerd.sock"
-# ... and in runc.options:
-  BinaryName = "/opt/bin/runc"
-```
-
-### Edge Mode containerd config (system defaults)
-```toml
-version = 2
-imports = ["/etc/containerd/conf.d/*.toml"]
-[plugins]
-  [plugins."io.containerd.grpc.v1.cri"]
-    sandbox_image = "registry.k8s.io/pause:3.10"
-    # ... rest of config, NO root/state/grpc/BinaryName
-```
-
-### Agent Mode spectro.slice (REMOVE for edge)
-```yaml
-# Agent mode has BOTH lines:
-- systemctl set-property system.slice AllowedCPUs={{ .spectro.var.systemReservedCPU }}
-- systemctl set-property spectro.slice AllowedCPUs={{ .spectro.var.systemReservedCPU }}
-
-# Edge mode has ONLY system.slice:
-- systemctl set-property system.slice AllowedCPUs={{ .spectro.var.systemReservedCPU }}
-```
-
-### What NOT to Conflate
-
-- **Mode differences** (agent vs edge): system.uri, containerd paths, spectro.slice
-- **Storage-weight differences** (e.g., Piraeus vs Portworx): memory reservations, NFS config — these vary by storage, NOT by mode
-
-When cloning from RA templates, verify you're cloning the correct mode variant (e.g., `VMO-RA-Infra-Edge-*` not `VMO-RA-Infra-Agent-*`).
+**See `references/byoos-agent-vs-edge.md`** for the full values blocks (options YAML, containerd TOML diffs, spectro.slice lines), why the modes differ, and what NOT to conflate when cloning RA templates.
 
 ### CRITICAL: Provider Image / K8s Version Alignment
 
@@ -442,7 +347,7 @@ provider "spectrocloud" {
 **Detection**: Query the API to verify profiles exist:
 ```bash
 curl -s "https://api.spectrocloud.com/v1/clusterprofiles/$PROFILE_UID" \
-  -H "ApiKey: $API_KEY" -H "ProjectUid: $PROJECT_UID" | jq '.metadata.name'
+  -H "ApiKey: $PALETTE_API_KEY" -H "ProjectUid: $PROJECT_UID" | jq '.metadata.name'
 # Returns null if profile doesn't exist in project
 ```
 
@@ -470,7 +375,7 @@ data "spectrocloud_pack" "edge_k3s" {
 
 Get registry UID:
 ```bash
-curl -s "https://api.spectrocloud.com/v1/registries/metadata" -H "ApiKey: $API_KEY" | \
+curl -s "https://api.spectrocloud.com/v1/registries/metadata" -H "ApiKey: $PALETTE_API_KEY" | \
   jq '[.items[] | {name: .metadata.name, uid: .metadata.uid}]'
 ```
 
@@ -482,6 +387,8 @@ Use for cluster-specific values: `{{ .spectro.var.K8sPodCIDR }}`, `{{ .spectro.v
 
 - `references/api-examples.md` - Full API examples
 - `references/terraform-examples.md` - Terraform patterns
+- `references/cross-tenant-cloning.md` - Clone profiles between tenants (UID resolution workflow)
+- `references/byoos-agent-vs-edge.md` - Full BYOOS values diffs for agent vs edge mode
 
 ## Quick Reference
 

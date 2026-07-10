@@ -296,7 +296,7 @@ Dark gradient callout with pill tags. Good for POC scope or key messages.
 
 ## 7. Track Cards
 
-Side-by-side cards with icon headers and bullet lists.
+Side-by-side cards with icon headers and bullet lists. Each track card header MUST use an **emoji character** inside an `.icon-wrap` div — do NOT substitute text abbreviations, single letters, or CSS-styled spans. Examples: 🏭 for infrastructure, 🤖 for applications, 🔒 for security, 📊 for monitoring, 🌐 for networking.
 
 ```css
 .track-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
@@ -316,7 +316,7 @@ Side-by-side cards with icon headers and bullet lists.
 
 ## 8. Stack Strip
 
-Horizontal component strip with icons and labels. Good for technology stacks.
+Horizontal component strip with icons and labels. Good for technology stacks. The `.stack-icon` div MUST contain an **emoji character** — do NOT use text abbreviations (e.g., "K8s", "OS", "PX") or single letters. Examples: ☸️ for Kubernetes, 🐧 for Linux, 💾 for storage, 🔒 for networking/security, 📊 for management platforms.
 
 ```css
 .stack-strip {
@@ -394,7 +394,7 @@ Horizontal timeline with gradient connector and dots.
 
 ## 12. Verdict Cards
 
-Icon + text cards for key decisions or approach summaries.
+Icon + text cards for key decisions or approach summaries. The `.verdict-icon` div MUST contain an emoji character (see Icon enforcement in SKILL.md) — not a single letter, text abbreviation, or CSS-styled span.
 
 ```css
 .verdict {
@@ -430,7 +430,7 @@ Bordered text box for next steps or important notes.
 
 ## 14. Page Footer
 
-Use the inline SVG logo from `assets/spectrocloud-logo-horizontal.svg`. The SVG uses `currentcolor` for the wordmark — set `color` on the footer SVG to control it (e.g., `color: var(--ink)`). The Strata mark always renders in brand teals.
+Use the inline SVG logo from `assets/spectrocloud-logo-horizontal-currentcolor.svg` (NOT the deprecated 148x57 `spectrocloud-logo-horizontal.svg` — its letter counters render solid in Puppeteer). The SVG uses `currentcolor` with compound paths — set `color` on the footer SVG to control it (e.g., `color: var(--ink)`).
 
 ```css
 .page-footer {

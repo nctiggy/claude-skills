@@ -413,12 +413,12 @@ See `spectrocloud-cluster-profiles` skill → "BYOOS Pack Values: Agent vs Edge 
 
 ## BYOOS Pack Version
 
-**Always use the latest BYOOS pack version** when creating cluster profiles. As of Jan 2025, this is **2.1.0**.
+**Always use the latest BYOOS pack version** when creating cluster profiles - never hardcode it.
 
-Query to confirm latest:
+Query the latest:
 ```bash
 curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=edge-native-byoi&limit=50" \
-  -H "ApiKey: $API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
+  -H "ApiKey: $PALETTE_API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
   sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[0].spec.version'
 ```
 
