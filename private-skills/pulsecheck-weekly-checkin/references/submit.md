@@ -52,6 +52,14 @@ login. Do this once in a **headed** browser and persist the session:
   password** — never print the cookie value, never commit it, never copy it
   into a routine or prompt.
 
+**Session lifetime (tested):** `__pulse_session` is a **fixed ~8-hour session
+that does not roll** — authenticated requests re-issue no cookie, so activity
+does not extend it and there is no silent-refresh or refresh-token endpoint.
+Renewal requires a fresh Okta SSO login (MFA). Practically, that means a
+captured cookie cannot be kept alive unattended, so **unattended/cloud submit
+is not possible via this cookie** — plan to re-login roughly daily, or request
+a write-scoped API token from the PulseCheck team for real automation.
+
 ```bash
 mkdir -p ~/.pulsecheck && chmod 700 ~/.pulsecheck
 # ...after Playwright saves storageState to ~/.pulsecheck/pulse-auth.json:

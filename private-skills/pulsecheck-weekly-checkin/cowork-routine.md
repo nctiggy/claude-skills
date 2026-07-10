@@ -31,6 +31,12 @@ schedule, or one with your captured `storageState`). A pure cloud routine has
 no cookie — in that case Submit mode still produces the finished answers and
 asks you to approve the one-step submit rather than failing.
 
+The cookie is a **fixed ~8-hour session that does not refresh** (tested — it
+never re-issues on activity), so it can't be kept alive unattended. A cloud
+routine therefore effectively **can't finalize in Submit mode** between logins;
+if you want true set-and-forget automation, use **Draft mode** (or get a
+write-scoped API token from the PulseCheck team).
+
 ## Routine prompt — Draft mode (ready to use)
 
 ```text
