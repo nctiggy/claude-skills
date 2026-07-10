@@ -191,6 +191,16 @@ echo "$LATEST"
 
 **Example**: Calico 3.30.1 vs 3.31.2 - without pagination you may get an older version that appears "latest" in the first 50 results.
 
+### Get Latest BYOOS Version (edge-native-byoi)
+
+BYOOS exists in TWO registries; filter on Public Repo (`5eecc89d0b150045ae661cef`, `type = "spectro"`, recommended). Never hardcode the version:
+
+```bash
+curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=edge-native-byoi&limit=50" \
+  -H "ApiKey: $PALETTE_API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
+  sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[0] | {version: .spec.version, uid: .metadata.uid}'
+```
+
 ---
 
 ## K8s Version Discovery
