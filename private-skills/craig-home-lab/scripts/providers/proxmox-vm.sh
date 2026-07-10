@@ -8,9 +8,14 @@
 #   - LAB_DRYRUN=1 prints every mutating command instead of executing
 #
 # Env:
-#   LAB_PVE_HOST     pve node for qm commands           (default 172.18.0.70 = pve1)
+#   LAB_PVE_HOST     PIN a pve node for placement (e.g. 172.18.0.72 = pve3 for GPU
+#                    passthrough). Unset = least-busy online node is chosen.
+#   LAB_PVE_BOOTSTRAP node that answers the placement query (default 172.18.0.70 = pve1)
 #   LAB_PVE_USER     ssh user on pve                    (default root, key-auth)
-#   LAB_CLOUD_IMAGE  path ON THE PVE HOST to an Ubuntu cloud image (required for setup)
+#   LAB_SSH_JUMP     ProxyJump host (user@addr) with a leg on VLAN19 — exec needs it;
+#                    saved into the suite state at setup
+#   LAB_CLOUD_IMAGE  path ON THE PVE HOST to the golden Ubuntu cloud image (required
+#                    for setup; must have qemu-guest-agent baked in)
 #   LAB_SSH_PUBKEY   local path to the pubkey injected via cloud-init
 #                    (default: first of ~/.ssh/id_ed25519.pub, ~/.ssh/id_rsa.pub)
 #   LAB_VM_CORES / LAB_VM_MEMORY / LAB_VM_DISK_GROW    (default 4 / 8192 / +40G)
@@ -18,7 +23,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PVE="${LAB_PVE_USER:-root}@${LAB_PVE_HOST:-172.18.0.70}"
+# Any online cluster member can answer the placement query; qm create/destroy are
+# node-local so we resolve an actual target node (least-busy unless LAB_PVE_HOST pins one).
+LAB_PVE_BOOTSTRAP="${LAB_PVE_BOOTSTRAP:-172.18.0.70}"
+PVE_HOST="${LAB_PVE_HOST:-$LAB_PVE_BOOTSTRAP}"
+PVE="${LAB_PVE_USER:-root}@$PVE_HOST"
 STATE_DIR="${LAB_STATE_DIR:-$HOME/.cache/craig-home-lab}"
 VMID_MIN=900 VMID_MAX=999
 DRY="${LAB_DRYRUN:-}"
@@ -31,6 +40,36 @@ pve() {  # run a command on the pve host (or print it in dry-run)
     return 0
   fi
   ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$PVE" "$@"
+}
+
+# Pick the least-busy online cluster node (by memory fraction) and echo its IP.
+# Read-only cluster query against the bootstrap node; falls back to the bootstrap
+# IP on any error so setup never hard-fails on placement.
+resolve_pve_host() {
+  local blob
+  blob="$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+      "${LAB_PVE_USER:-root}@$LAB_PVE_BOOTSTRAP" \
+      'pvesh get /cluster/resources --type node --output-format json; echo __SPLIT__; pvesh get /cluster/status --output-format json' 2>/dev/null)" \
+    || { echo "$LAB_PVE_BOOTSTRAP"; return; }
+  PVE_BLOB="$blob" python3 - "$LAB_PVE_BOOTSTRAP" <<'PY'
+import os, sys, json
+fallback = sys.argv[1]
+try:
+    res_raw, st_raw = os.environ["PVE_BLOB"].split("__SPLIT__")
+    res, st = json.loads(res_raw), json.loads(st_raw)
+except Exception:
+    print(fallback); sys.exit()
+ip = {n["name"]: n.get("ip") for n in st if n.get("type") == "node"}
+best = None
+for n in res:
+    if n.get("status") != "online":
+        continue
+    frac = n.get("mem", 0) / (n.get("maxmem", 1) or 1)
+    cand = (frac, n["node"])
+    if best is None or cand < best:
+        best = cand
+print((ip.get(best[1]) if best else None) or fallback)
+PY
 }
 
 # ping timeout flag differs by platform: macOS -t = timeout, Linux -t = TTL (-W = timeout)
@@ -71,6 +110,15 @@ case "$CMD" in
     while IFS= read -r r; do [ -n "$r" ] && roles+=("$r"); done < <(suite_meta "$SUITE_FILE" roles)
     [ ${#roles[@]} -gt 0 ] || die "suite has no adapter_requirements.hosts"
 
+    # Placement: unless LAB_PVE_HOST pins a node, target the least-busy online
+    # member so runs land off whichever node is loaded. vm-pool is shared Ceph and
+    # the cloud image is present on every node, so any node can host the VM.
+    if [ -z "${LAB_PVE_HOST:-}" ] && [ -z "$DRY" ]; then
+      PVE_HOST="$(resolve_pve_host)"
+      PVE="${LAB_PVE_USER:-root}@$PVE_HOST"
+      echo "proxmox-vm: placing on least-busy node -> $PVE_HOST" >&2
+    fi
+
     pubkey_file=""
     for cand in "${LAB_SSH_PUBKEY:-}" "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub"; do
       [ -n "$cand" ] && [ -f "$cand" ] && pubkey_file="$cand" && break
@@ -105,16 +153,33 @@ case "$CMD" in
       scp -o BatchMode=yes -q "$pubkey_file" "$PVE:$remote_key"
     fi
 
-    # VLAN-19 static addressing. NOTE: pve has NO route to 172.19 (it's a tagged VM
-    # VLAN), so we cannot learn the IP from the pve side via the guest agent — we
-    # ASSIGN a static IP from a reserved range and probe reachability locally (the
-    # runner routes to 172.19). This also removes the qemu-guest-agent dependency
-    # (stock cloud image doesn't run it).
+    # VLAN-19 static addressing. The pve host / gateway have NO L3 path into 172.19
+    # (tagged VM VLAN) — only on-subnet hosts reach the guests. So readiness is NOT
+    # a ping from here; we ask the QEMU guest agent (over virtio-serial, no network
+    # path) to report the guest's interfaces, then confirm the assigned IP is live.
+    # Requires qemu-guest-agent in the image (baked into the golden LAB_CLOUD_IMAGE)
+    # and --agent 1 on the VM. Test exec then reaches guests via LAB_SSH_JUMP (a
+    # ProxyJump through an on-VLAN19 runner). Static IPs stay deterministic.
     gw="${LAB_VM_GW:-172.19.0.1}"
     ns="${LAB_VM_NAMESERVER:-8.8.8.8}"
     ip_prefix="${LAB_VM_IP_PREFIX:-172.19.0}"
     ip_base_last="${LAB_VM_IP_BASE_LAST:-200}"   # poctest reserved: 172.19.0.200-254
     declare -A vmid_of addr_of ip_taken
+    # Pre-seed ip_taken from OTHER suites' state files: the runner has no L3 path
+    # into VLAN19, so the ping probe below can NOT see another suite's live VMs —
+    # without this, two concurrent suites would both claim .200+. (Own suite's
+    # stale state is skipped; it gets overwritten at the end of setup.)
+    own_sf="$(state_file "$suite")"
+    for other_sf in "$STATE_DIR"/*.json; do
+      [ -f "$other_sf" ] || continue
+      [ "$other_sf" = "$own_sf" ] && continue
+      while IFS= read -r used_ip; do
+        [ -n "$used_ip" ] && ip_taken[$used_ip]=1
+      done < <(python3 -c '
+import json, sys
+for h in json.load(open(sys.argv[1])).get("hosts", {}).values():
+    print(h.get("address", ""))' "$other_sf" 2>/dev/null)
+    done
     idx=0
     for role in "${roles[@]}"; do
       next_vmid; vmid="$NEXT_VMID"
@@ -140,44 +205,69 @@ case "$CMD" in
       # UEFI (ovmf) with Secure Boot NOT enforced — pre-enrolled-keys=1 blocks the
       # generic cloud image's boot chain under this OVMF (learned 2026-07-09).
       # Secure-Boot validation belongs to appliance mode (signed CanvOS image).
-      pve qm create "$vmid" --name "$name" \
+      # NB: stdout is the adapter's JSON contract — every mutating qm call's progress
+      # ("transferred…", "generating cloud-init ISO") MUST go to stderr, or it pollutes
+      # the JSON the harness parses. Only the final `echo "$json"` writes to stdout.
+      pve qm create "$vmid" --name "$name" --agent 1 \
         --bios ovmf --efidisk0 vm-pool:0,efitype=4m,pre-enrolled-keys=0 \
         --cpu host --cores "${LAB_VM_CORES:-4}" --memory "${LAB_VM_MEMORY:-8192}" \
         --numa 0 --ostype l26 --scsihw virtio-scsi-single \
-        --net0 "virtio,bridge=vmbr0,tag=19"
-      pve qm set "$vmid" --scsi0 "vm-pool:0,import-from=$LAB_CLOUD_IMAGE,iothread=1,backup=0"
-      # Cloud-image import locks boot to net0 — MUST re-point at the disk
-      # (references/proxmox-vms.md, learned 2026-06-12).
-      pve qm set "$vmid" --boot order=scsi0
+        --serial0 socket --net0 "virtio,bridge=vmbr0,tag=19" >&2
+      pve qm set "$vmid" --scsi0 "vm-pool:0,import-from=$LAB_CLOUD_IMAGE,iothread=1,backup=0" >&2
       pve qm set "$vmid" --ide2 vm-pool:cloudinit --ciuser ubuntu \
-        --sshkeys "$remote_key" --ipconfig0 "ip=$vmip/24,gw=$gw" --nameserver "$ns"
-      pve qm disk resize "$vmid" scsi0 "${LAB_VM_DISK_GROW:-+40G}"
-      pve qm start "$vmid"
+        --sshkeys "$remote_key" --ipconfig0 "ip=$vmip/24,gw=$gw" --nameserver "$ns" >&2
+      # Fixed boot order HDD;CD;NET (disk first — import defaults boot to net0, which
+      # loops a reinstall). Set AFTER ide2 exists so all referenced devices resolve.
+      # NB: pve() flattens args over ssh, so the ';' must be quoted for the REMOTE
+      # shell (embedded single-quotes) or it splits into bogus commands.
+      pve qm set "$vmid" --boot "'order=scsi0;ide2;net0'" >&2
+      pve qm disk resize "$vmid" scsi0 "${LAB_VM_DISK_GROW:-+40G}" >&2
+      pve qm start "$vmid" >&2
       [ -n "$DRY" ] || ssh-keygen -R "$vmip" >/dev/null 2>&1 || true  # reused IPs churn host keys
       vmid_of[$role]="$vmid"
       addr_of[$role]="$vmip"
       idx=$((idx + 1))
     done
 
-    # Wait for each VM to become reachable on its assigned static IP. Probe LOCALLY
-    # (the runner routes to 172.19; pve does not), up to ~5 min for cloud-init.
+    # Readiness via the guest agent (virtio-serial — needs no VLAN19 path). Wait up to
+    # ~5 min for the agent to report a non-loopback IPv4. Prefer the assigned static;
+    # if the guest came up on a different IP (e.g. DHCP), adopt what the agent reports.
     if [ -n "$DRY" ]; then
       for role in "${roles[@]}"; do
-        echo "DRYRUN wait-for-ip vmid=${vmid_of[$role]} role=$role ip=${addr_of[$role]}" >&2
+        echo "DRYRUN wait-for-agent vmid=${vmid_of[$role]} role=$role ip=${addr_of[$role]}" >&2
       done
     else
       for role in "${roles[@]}"; do
-        vmip="${addr_of[$role]}"; ok=""
+        vmid="${vmid_of[$role]}"; got=""
         for _ in $(seq 1 60); do
-          ping_probe 2 "$vmip" && { ok=1; break; }
+          blob="$(pve qm agent "$vmid" network-get-interfaces 2>/dev/null)" || blob=""
+          if [ -n "$blob" ]; then
+            got="$(printf '%s' "$blob" | AGENT_WANT="${addr_of[$role]}" python3 -c '
+import os, sys, json
+want = os.environ.get("AGENT_WANT")
+try: data = json.load(sys.stdin)
+except Exception: sys.exit()
+found = []
+for i in data:
+    if i.get("name") == "lo": continue
+    for a in (i.get("ip-addresses") or []):
+        if a.get("ip-address-type") == "ipv4": found.append(a["ip-address"])
+print(want if want in found else (found[0] if found else ""))
+')"
+            [ -n "$got" ] && break
+          fi
           sleep 5
         done
-        [ -n "$ok" ] || die "vm ${vmid_of[$role]} ($role) never became reachable at $vmip"
+        [ -n "$got" ] || die "vm ${vmid_of[$role]} ($role) agent never reported an IPv4 (guest network down?)"
+        if [ "$got" != "${addr_of[$role]}" ]; then
+          echo "proxmox-vm: $role up on $got (assigned ${addr_of[$role]}) — adopting agent-reported IP" >&2
+          addr_of[$role]="$got"
+        fi
       done
     fi
 
-    # State (vmids/ips/roles only — no secrets), then the contract JSON.
-    json='{"adapter": "craig-home-lab/proxmox-vm", "hosts": {'
+    # State (vmids/ips/roles + placement/jump — no secrets), then the contract JSON.
+    json="{\"adapter\": \"craig-home-lab/proxmox-vm\", \"pve_host\": \"$PVE_HOST\", \"ssh_jump\": \"${LAB_SSH_JUMP:-}\", \"hosts\": {"
     first=1
     for role in "${roles[@]}"; do
       [ $first -eq 0 ] && json+=', '
@@ -211,13 +301,21 @@ sys.exit(0 if sys.argv[2] in d.get("hosts", {}) else 1)' "$f" "$role"; then sf="
 import json, sys
 h = json.load(open(sys.argv[1]))["hosts"][sys.argv[2]]
 print(h["user"], h["address"])' "$sf" "$role")
+    # Guests live on VLAN19 which this host can not route to directly — hop through
+    # an on-subnet runner. LAB_SSH_JUMP overrides; else use the value saved at setup.
+    jump="${LAB_SSH_JUMP:-$(python3 -c '
+import json, sys
+print(json.load(open(sys.argv[1])).get("ssh_jump", ""))' "$sf")}"
+    jump_opt=(); [ -n "$jump" ] && jump_opt=(-J "$jump")
     if [ -n "$DRY" ]; then
-      echo "DRYRUN ssh $user@$addr 'bash -s' < $script" >&2
+      echo "DRYRUN ssh ${jump_opt[@]+"${jump_opt[@]}"} $user@$addr 'bash -s' < $script" >&2
       exit 0
     fi
     # Ephemeral throwaway VMs on reused static IPs — don't pollute/conflict known_hosts.
+    # (${arr[@]+...} guard: empty-array expansion under set -u errors on bash 3.2/macOS,
+    # same idiom as the suites loop in teardown.)
     ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-      "$user@$addr" 'bash -s' < "$script"
+      ${jump_opt[@]+"${jump_opt[@]}"} "$user@$addr" 'bash -s' < "$script"
     ;;
 
   teardown)
@@ -229,9 +327,18 @@ print(h["user"], h["address"])' "$sf" "$role")
         [ -f "$f" ] && suites+=("$(basename "$f" .json)")
       done
     fi
+    # Delete Palette clusters/edge hosts FIRST, while the VMs are still ALIVE, so the
+    # cluster can drain+deprovision the node cleanly. Destroying the VM first wedges the
+    # cluster in "Deleting" (force-delete then blocked 15 min) and orphans the edge host.
+    # palette-cleanup blocks until the clusters are gone. (learned 2026-07-10)
+    "$SCRIPT_DIR/../palette-cleanup.sh" || echo "warn: palette-cleanup failed (rerun manually)" >&2
     for suite in ${suites[@]+"${suites[@]}"}; do
       sf="$(state_file "$suite")"
       [ -f "$sf" ] || continue
+      # Target the node the VMs were created on (qm is node-local; a VM on pve2 is
+      # invisible to qm on pve1). Fall back to the current PVE if unrecorded.
+      sf_host="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("pve_host",""))' "$sf" 2>/dev/null)"
+      [ -n "$sf_host" ] && PVE="${LAB_PVE_USER:-root}@$sf_host"
       while read -r role vmid; do
         # RAIL: range check from state…
         if [ "$vmid" -lt $VMID_MIN ] || [ "$vmid" -gt $VMID_MAX ]; then
@@ -260,7 +367,6 @@ for role, h in d.get("hosts", {}).items():
         rm -f "$sf"
       fi
     done
-    "$SCRIPT_DIR/../palette-cleanup.sh" || echo "warn: palette-cleanup failed (rerun manually)" >&2
     ;;
 
   *)
