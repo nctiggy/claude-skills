@@ -9,31 +9,10 @@ Pack-specific configuration patterns, gotchas, and known issues.
 
 ## Pack Discovery
 
-**Important**: Pack API paginates at 50 results. Always use pagination for packs with many versions.
+Use the `spectrocloud-common` skill for all discovery queries — pagination-safe find-by-name ("Find Pack by Exact Name"), latest-version + UID lookup ("Get Latest Pack Version"), and full default values ("Get Pack Default Values"). Two rules that skill enforces:
 
-```bash
-# Find pack by name with pagination - get ALL versions
-PACK_NAME="piraeus-operator"
-(for OFFSET in 0 50 100 150; do
-  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
-    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
-done) | jq -s '[.[] | select(.status.disabled != true) |
-  {name: .metadata.name, version: .spec.version, uid: .metadata.uid,
-   registry: .spec.registryUid, layer: .spec.layer}] |
-  sort_by(.version | split(".") | map(tonumber? // 0)) | reverse'
-
-# Get the LATEST version's UID automatically (with pagination)
-PACK_UID=$((for OFFSET in 0 50 100 150; do
-  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
-    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
-done) | jq -s -r '[.[] | select(.status.disabled != true)] |
-  sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
-  reverse | .[0] | .metadata.uid')
-
-# Get full default values (CRITICAL - never use partial values)
-curl -s "https://api.spectrocloud.com/v1/packs/$PACK_UID?includePackValues=true" \
-  -H "ApiKey: $PALETTE_API_KEY" | jq -r '.packValues[0].values'
-```
+- The pack API **paginates at 50 results** — always loop offsets 0/50/100/150
+- **Never use partial pack values** — fetch the COMPLETE file via `GET /v1/packs/$PACK_UID?includePackValues=true`
 
 ---
 

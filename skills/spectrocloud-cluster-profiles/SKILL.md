@@ -32,22 +32,9 @@ When adding applications, search in this order:
 4. What packs? (use `spectrocloud-common` skill for discovery)
 
 **For edge-native profiles, determine K8s version FIRST:**
-- Use `spectrocloud-common` skill's "K8s Version Discovery" section
+- Run the "Get n-1 Minor K8s Version" query from the `spectrocloud-common` skill (`edge-k3s`, or `edge-k8s` for kubeadm)
 - Default to **n-1 minor** (e.g., 1.32.x when 1.33 is latest) for stability
 - Query before asking user - present the recommended version
-
-```bash
-# Quick check: Get recommended K8s version for edge profiles
-PACK_NAME="edge-k3s"  # or edge-k8s for kubeadm
-K8S_VERSION=$((for OFFSET in 0 50 100 150; do
-  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
-    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
-done) | jq -s '[.[] | select(.status.disabled != true) | .spec.version] | unique |
-  sort_by(split(".") | map(tonumber)) | reverse |
-  group_by(split(".")[0:2] | join(".")) |
-  sort_by(.[0] | split(".") | map(tonumber)) | reverse | .[1][0] // .[0][0]')
-echo "Recommended: $K8S_VERSION"
-```
 
 **ALWAYS get the latest version of each pack** unless the user specifies a version. Use the Version Selection query below for EVERY pack.
 
@@ -56,15 +43,10 @@ echo "Recommended: $K8S_VERSION"
 **Partial pack values WILL fail validation.** Before creating ANY profile:
 
 ### Step 1: Fetch Complete Values for EVERY Pack
-```bash
-# Get pack UID first (with pagination - API limits to 50)
-PACK_NAME="edge-k3s"
-PACK_UID=$((for OFFSET in 0 50 100; do
-  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
-    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
-done) | jq -s -r '[.[] | select(.status.disabled != true)] |
-  sort_by(.spec.version | split(".") | map(tonumber? // 0)) | reverse | .[0].metadata.uid')
 
+Get the pack's latest UID via the "Get Latest Pack Version" query in the `spectrocloud-common` skill (pagination-safe), then:
+
+```bash
 # Fetch COMPLETE values - save to file
 curl -s "https://api.spectrocloud.com/v1/packs/$PACK_UID?includePackValues=true" \
   -H "ApiKey: $PALETTE_API_KEY" | jq -r '.packValues[0].values' > pack-values.yaml
@@ -101,12 +83,7 @@ values = file("pack-values-modified.yaml")
 - **Public Repo** (5eecc89d0b150045ae661cef) → `type = "spectro"` (recommended)
 - **Palette Community Registry** (64eaff453040297344bcad5d) → `type = "oci"`
 
-**Always use the latest BYOOS version** - never hardcode it. Query to confirm:
-```bash
-curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=edge-native-byoi&limit=50" \
-  -H "ApiKey: $PALETTE_API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
-  sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[0] | {version: .spec.version, uid: .metadata.uid}'
-```
+**Always use the latest BYOOS version** - never hardcode it. Query it with the "Get Latest BYOOS Version" query in the `spectrocloud-common` skill.
 
 Profile creation fails with "PackType 'X' is not matching with registry type 'Y'" if type doesn't match registry.
 
@@ -133,21 +110,7 @@ curl -s "https://api.spectrocloud.com/v1/registries/metadata" -H "ApiKey: $PALET
 
 **ALWAYS query for the latest version of EVERY pack** before creating profiles. Never assume or hardcode versions - they change frequently.
 
-**CRITICAL**: API paginates at 50 results. Popular packs like Calico have many versions - you MUST use pagination to find the true latest:
-
-```bash
-# Get LATEST version of a pack (handles pagination properly)
-PACK_NAME="cni-calico"  # Replace with actual pack name
-LATEST=$((for OFFSET in 0 50 100 150; do
-  curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=$PACK_NAME&limit=50&offset=$OFFSET" \
-    -H "ApiKey: $PALETTE_API_KEY" | jq '.items[]'
-done) | jq -s '[.[] | select(.status.disabled != true)] |
-  sort_by(.spec.version | split(".") | map(tonumber? // 0)) |
-  reverse | .[0] | {name: .metadata.name, version: .spec.version, uid: .metadata.uid, registry: .spec.registryUid}')
-echo "$LATEST"
-```
-
-**Run this query for EACH pack you're adding to the profile.** Do not skip this step or use cached/remembered versions.
+**CRITICAL**: API paginates at 50 results. Popular packs like Calico have many versions - you MUST use pagination to find the true latest. Run the "Get Latest Pack Version" query from the `spectrocloud-common` skill for EACH pack you're adding to the profile. Do not skip this step or use cached/remembered versions.
 
 ## CRUD Operations
 
