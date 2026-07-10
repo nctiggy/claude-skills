@@ -38,3 +38,6 @@ Thumbs.db
 # Personal/local skills (not published)
 skills/craigs-homelab/
 skills/*-local/
+
+# Private skills: local-only, never tracked in this public repo
+private-skills/
