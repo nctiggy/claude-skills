@@ -128,7 +128,7 @@ Use the inline SVG from `assets/spectrocloud-logo-horizontal-currentcolor.svg` (
 
 **CRITICAL:** For the footer SVG, READ and inline the content of `assets/spectrocloud-logo-horizontal-currentcolor.svg`. Do NOT use the old 148x57 viewBox website SVG — it has separate paths per letter part and letter counters (o, p, e, d, C) will render as solid blobs in Puppeteer. The currentcolor SVG has compound paths that work correctly.
 
-The SVG wordmark uses `currentcolor`, so set `color` on the parent to control the text portion. The full SVG source is in `assets/spectrocloud-logo-horizontal.svg`.
+The SVG wordmark uses `currentcolor`, so set `color` on the parent to control the text portion.
 
 **Three logo SVG variants (all in `assets/`, all use compound paths with `fill-rule="evenodd"`):**
 - **Footer (light background):** `spectrocloud-logo-horizontal-currentcolor.svg` — viewBox `0 0 501 192`, `fill="currentcolor"` with `fill-rule="evenodd"`. Set `color: var(--ink)` on the SVG element. Uses compound paths so letter counters (o, p, e, d) render correctly.
@@ -197,62 +197,9 @@ Each page MUST be wrapped:
 }
 ```
 
-## Puppeteer Rendering Gotchas
+## Puppeteer Rendering
 
-### Emoji Centering
-
-Emojis have inconsistent vertical metrics across fonts/platforms in Puppeteer. When using emojis as icons (e.g., in track card headers, verdict cards, stack strips), wrap them in a flex container with explicit sizing:
-
-```css
-.icon-wrap {
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; line-height: 1;
-  flex-shrink: 0;
-}
-```
-
-Do NOT rely on `vertical-align` or bare emoji text for alignment. Always use a flex centering wrapper. For circular icon backgrounds, add `border-radius: 50%; background: var(--accent-glow);` to the wrapper.
-
-### SVG Letter Counters (compound paths required)
-
-Letters with enclosed counters (p, o, e, d, b, a, g, etc.) need the outer shape and inner hole as **subpaths within the same `<path>` element** (compound paths). If they are separate `<path>` elements, the holes render as solid fill in Puppeteer regardless of `fill-rule`.
-
-**The old website SVG** (`viewBox="0 0 148 57"`) has separate paths per letter part — DO NOT USE IT for Puppeteer/PDF output. Letter counters will fill solid.
-
-**The Brand Drive SVGs** (`viewBox="0 0 501 192"`) use compound paths — these are correct:
-- `spectrocloud-logo-horizontal-knockout-white.svg` (header, `fill="#fff"`)
-- `spectrocloud-logo-horizontal-currentcolor.svg` (footer, `fill="currentcolor"`)
-
-Both MUST include `fill-rule="evenodd"` on the `<svg>` element.
-
-## PDF Generation
-
-Always create a `generate-pdf.mjs` alongside the HTML:
-
-```javascript
-import puppeteer from 'puppeteer';
-import { fileURLToPath } from 'url';
-import path from 'path';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const htmlPath = path.join(__dirname, 'OUTPUT_NAME.html');
-const pdfPath = path.join(__dirname, 'OUTPUT_NAME.pdf');
-
-const browser = await puppeteer.launch({ headless: true });
-const page = await browser.newPage();
-await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle0', timeout: 30000 });
-await page.pdf({
-  path: pdfPath,
-  format: 'letter',
-  printBackground: true,
-  margin: { top: '20px', right: '28px', bottom: '20px', left: '28px' },
-});
-await browser.close();
-console.log(`PDF generated: ${pdfPath}`);
-```
-
-Ensure `package.json` has `puppeteer` as a dependency. Run `npm install` before generating.
+READ `references/puppeteer-render.md` — the canonical render reference shared with `slide-deck-generator`. It covers the non-negotiables (font loading via `<link>`, `-webkit-print-color-adjust: exact`, `networkidle0`), emoji flex-centering, SVG compound-path/letter-counter rules, page-break rules, and the full `generate-pdf.mjs` script (use the **letter-format** variant for exec docs).
 
 ## Workflow
 

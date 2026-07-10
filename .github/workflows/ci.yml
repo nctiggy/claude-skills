@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'skills/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
 
 jobs:
   validate:
@@ -18,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: pip install pyyaml
 
-      - name: Validate changed skills
+      - name: Validate all skills
         run: |
           exit_code=0
           for skill_dir in skills/*/; do
@@ -30,3 +32,6 @@ jobs:
             fi
           done
           exit $exit_code
+
+      - name: Secret scan (shareable skills only)
+        run: python scripts/secret_scan.py skills

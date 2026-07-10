@@ -245,49 +245,16 @@ And an HTML comment before `</body>`:
 
 ## Logo Usage in Slides
 
-Use the inline SVG from `spectrocloud-brand/assets/`. Two variants:
+Use the inline SVG from `spectrocloud-brand/assets/`. Two variants (both viewBox `0 0 501 192`, compound paths, `fill-rule="evenodd"`):
 
-- **Header bar (dark bg):** Use `spectrocloud-logo-horizontal-knockout-white.svg` (all white paths)
-- **Footer / light bg:** Use `spectrocloud-logo-horizontal.svg` (Strata in brand teals, wordmark in `currentcolor`)
+- **Header bar (dark bg):** `spectrocloud-logo-horizontal-knockout-white.svg` (all white paths)
+- **Footer / light bg:** `spectrocloud-logo-horizontal-currentcolor.svg` (`fill="currentcolor"` — set CSS `color` on the SVG to control it)
 
-Always add `fill-rule="evenodd"` to the SVG element to prevent letter counter fill issues in Puppeteer.
+Do NOT use the old 148x57 `spectrocloud-logo-horizontal.svg` — its letter counters render solid in Puppeteer.
 
-## PDF Generation
+## PDF Generation & Puppeteer Gotchas
 
-Create a `generate-pdf.mjs` alongside the HTML:
-
-```javascript
-import puppeteer from 'puppeteer';
-import { fileURLToPath } from 'url';
-import path from 'path';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const htmlPath = path.join(__dirname, 'deck.html');
-const pdfPath = path.join(__dirname, 'deck.pdf');
-
-const browser = await puppeteer.launch({ headless: true });
-const page = await browser.newPage();
-await page.setViewport({ width: 1280, height: 720 });
-await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle0', timeout: 30000 });
-await page.pdf({
-  path: pdfPath,
-  width: '1280px',
-  height: '720px',
-  printBackground: true,
-  landscape: true,
-  margin: { top: 0, right: 0, bottom: 0, left: 0 },
-});
-await browser.close();
-console.log(`PDF generated: ${pdfPath}`);
-```
-
-## Puppeteer Gotchas
-
-- **Emoji centering:** Wrap emojis in a flex container with explicit width/height. Do not rely on `vertical-align`.
-- **SVG fill-rule:** Add `fill-rule="evenodd"` to prevent letter counters filling solid.
-- **Print colors:** Always set `-webkit-print-color-adjust: exact` on `.slide`.
-- **Font loading:** The Google Fonts import must load before render. Use `waitUntil: 'networkidle0'`.
-- **Page breaks:** Each `.slide` must have `page-break-after: always` except the last.
+READ `exec-doc-generator/references/puppeteer-render.md` — the canonical render reference shared by both PDF generators. It covers font loading via `<link>`, `-webkit-print-color-adjust: exact`, emoji flex-centering, SVG compound-path rules, and the full `generate-pdf.mjs` script (use the **16:9 slide deck** variant: 1280x720 viewport, fixed page size, landscape, zero margins). Deck-specific rule: each `.slide` gets `page-break-after: always` except the last.
 
 ## Co-branding with Customer Colors
 

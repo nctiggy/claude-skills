@@ -1,6 +1,6 @@
 ---
 name: spectrocloud-web-ui
-description: Spectro Cloud brand theming for web frontends. CSS custom properties, component patterns, dark mode, responsive layouts, and accessibility guidance. References spectrocloud-brand for colors and typography.
+description: Spectro Cloud brand theming for web frontends. CSS custom properties, component patterns, dark mode, responsive layouts, and accessibility guidance. Use when building dashboards, demo apps, portals, or any HTML/CSS project needing SC visual identity. References spectrocloud-brand for colors and typography.
 ---
 
 # Spectro Cloud Web UI Theming
@@ -17,7 +17,7 @@ Brand-aligned web UI patterns for dashboards, internal tools, customer portals, 
 
 ## CSS Custom Properties
 
-Import the full palette. These mirror the definitions in `spectrocloud-brand/references/colors.md`.
+Import the full palette. These mirror the definitions in `spectrocloud-brand/references/colors.md` -- if the two ever disagree, colors.md wins.
 
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap');
@@ -130,291 +130,33 @@ pre code {
 }
 ```
 
-## Component Patterns
+## Component Library
 
-### Navigation Bar
+Copy-paste HTML/CSS for every `sc-*` component lives in **`references/components.md`**:
 
-```html
-<nav class="sc-navbar">
-  <div class="sc-navbar-brand">
-    <!-- Use knockout-white SVG on teal background -->
-    <img src="spectrocloud-logo-horizontal-knockout-white.svg" alt="Spectro Cloud" height="28">
-  </div>
-  <div class="sc-navbar-links">
-    <a href="#" class="sc-navbar-link active">Dashboard</a>
-    <a href="#" class="sc-navbar-link">Clusters</a>
-    <a href="#" class="sc-navbar-link">Profiles</a>
-  </div>
-</nav>
-```
+| Component | Classes |
+|-----------|---------|
+| Navigation bar | `.sc-navbar`, `.sc-navbar-brand`, `.sc-navbar-link` |
+| Side navigation | `.sc-sidenav`, `.sc-sidenav-section`, `.sc-sidenav-link` |
+| Cards | `.sc-card` (+ `--gold` / `--lilac` / `--orange` variants) |
+| Stat / KPI cards | `.sc-stat-card`, `.sc-stat-value`, `.sc-stat-change` |
+| Tables | `.sc-table` |
+| Buttons | `.sc-btn-primary`, `.sc-btn-secondary`, `.sc-btn-accent` |
+| Badges / pills | `.sc-badge` (+ color variants) |
+| Alerts | `.sc-alert` (+ `--success` / `--warning` / `--error`) |
+| Form inputs | `.sc-input`, `.sc-label` |
+| Footer | `.sc-footer` |
+| Dark mode overrides | `[data-theme="dark"]` block |
+| Responsive breakpoints | 576 / 768 / 1024 / 1280px, mobile-first |
+| Animation | `.sc-fade-in` |
 
-```css
-.sc-navbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--sc-teal);
-  padding: var(--sc-space-sm) var(--sc-space-xl);
-  color: #fff;
-}
-.sc-navbar-links { display: flex; gap: var(--sc-space-lg); }
-.sc-navbar-link {
-  color: rgba(255,255,255,0.8);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: var(--sc-space-xs) 0;
-  border-bottom: 2px solid transparent;
-}
-.sc-navbar-link:hover,
-.sc-navbar-link.active {
-  color: #fff;
-  border-bottom-color: var(--sc-gold);
-}
-```
-
-### Side Navigation
-
-```css
-.sc-sidenav {
-  width: 240px;
-  background: var(--sc-ink);
-  color: var(--sc-neutral-2);
-  padding: var(--sc-space-lg) 0;
-  min-height: 100vh;
-}
-.sc-sidenav-section { padding: var(--sc-space-sm) var(--sc-space-lg); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sc-neutral-3); }
-.sc-sidenav-link {
-  display: block;
-  padding: var(--sc-space-sm) var(--sc-space-lg);
-  color: var(--sc-neutral-2);
-  text-decoration: none;
-  font-size: 0.875rem;
-  border-left: 3px solid transparent;
-}
-.sc-sidenav-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
-.sc-sidenav-link.active {
-  color: var(--sc-gold);
-  border-left-color: var(--sc-gold);
-  background: rgba(255,255,255,0.05);
-}
-```
-
-### Cards
-
-```css
-.sc-card {
-  background: #fff;
-  border: 1px solid var(--sc-border-light);
-  border-radius: var(--sc-radius-md);
-  padding: var(--sc-space-lg);
-  border-top: 3px solid var(--sc-teal);
-}
-.sc-card-title { font-weight: 600; font-size: 1.1rem; margin: 0 0 var(--sc-space-sm); }
-.sc-card-body { color: var(--sc-text-muted); font-size: 0.9rem; }
-```
-
-Variants: add `border-top-color` overrides for `.sc-card--gold` (`var(--sc-gold)`), `.sc-card--lilac` (`var(--sc-lilac)`), `.sc-card--orange` (`var(--sc-orange)`).
-
-### Stat Cards / KPI Displays
-
-```html
-<div class="sc-stat-card">
-  <div class="sc-stat-label">Active Clusters</div>
-  <div class="sc-stat-value">127</div>
-  <div class="sc-stat-change positive">+12% from last month</div>
-</div>
-```
-
-```css
-.sc-stat-card {
-  background: #fff;
-  border: 1px solid var(--sc-border-light);
-  border-radius: var(--sc-radius-md);
-  padding: var(--sc-space-lg);
-  text-align: center;
-}
-.sc-stat-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sc-text-muted); }
-.sc-stat-value { font-size: 2.5rem; font-weight: 200; color: var(--sc-teal); margin: var(--sc-space-xs) 0; }
-.sc-stat-change { font-size: 0.8rem; color: var(--sc-text-muted); }
-.sc-stat-change.positive { color: var(--sc-green-dark); }
-.sc-stat-change.negative { color: var(--sc-orange); }
-```
-
-### Tables
-
-```css
-.sc-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.sc-table th {
-  background: var(--sc-teal-darkest);
-  color: #fff;
-  font-weight: 600;
-  text-align: left;
-  padding: var(--sc-space-sm) var(--sc-space-md);
-}
-.sc-table td {
-  padding: var(--sc-space-sm) var(--sc-space-md);
-  border-bottom: 1px solid var(--sc-border-light);
-}
-.sc-table tr:hover td { background: rgba(31,122,120,0.04); }
-```
-
-### Buttons
-
-```css
-.sc-btn {
-  font-family: var(--sc-font);
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: var(--sc-space-sm) var(--sc-space-lg);
-  border-radius: var(--sc-radius-sm);
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.sc-btn-primary {
-  background: var(--sc-teal);
-  color: #fff;
-  border-color: var(--sc-teal);
-}
-.sc-btn-primary:hover { background: var(--sc-teal-dark); border-color: var(--sc-teal-dark); }
-
-.sc-btn-secondary {
-  background: transparent;
-  color: var(--sc-teal);
-  border-color: var(--sc-teal);
-}
-.sc-btn-secondary:hover { background: var(--sc-teal); color: #fff; }
-
-.sc-btn-accent {
-  background: var(--sc-gold);
-  color: var(--sc-ink);
-  border-color: var(--sc-gold);
-}
-.sc-btn-accent:hover { background: var(--sc-gold-dark); border-color: var(--sc-gold-dark); }
-```
-
-### Badges / Pills
-
-```css
-.sc-badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: var(--sc-neutral-1);
-  color: var(--sc-ink);
-}
-.sc-badge--teal { background: rgba(31,122,120,0.12); color: var(--sc-teal-dark); }
-.sc-badge--green { background: rgba(158,178,119,0.2); color: var(--sc-green-dark); }
-.sc-badge--gold { background: rgba(240,190,101,0.2); color: var(--sc-gold-dark); }
-.sc-badge--orange { background: rgba(185,75,1,0.12); color: var(--sc-orange-dark); }
-.sc-badge--lilac { background: rgba(126,92,142,0.12); color: var(--sc-lilac-dark); }
-```
-
-### Alerts / Notifications
-
-```css
-.sc-alert {
-  padding: var(--sc-space-md) var(--sc-space-lg);
-  border-radius: var(--sc-radius-md);
-  border-left: 4px solid var(--sc-teal);
-  background: rgba(31,122,120,0.06);
-  font-size: 0.9rem;
-}
-.sc-alert--success { border-left-color: var(--sc-green-dark); background: rgba(158,178,119,0.1); }
-.sc-alert--warning { border-left-color: var(--sc-gold-dark); background: rgba(240,190,101,0.1); }
-.sc-alert--error { border-left-color: var(--sc-orange); background: rgba(185,75,1,0.08); }
-```
-
-### Form Inputs
-
-```css
-.sc-input {
-  font-family: var(--sc-font);
-  font-size: 0.9rem;
-  padding: var(--sc-space-sm) var(--sc-space-md);
-  border: 1px solid var(--sc-border);
-  border-radius: var(--sc-radius-sm);
-  background: #fff;
-  color: var(--sc-text);
-  width: 100%;
-  transition: border-color 0.15s;
-}
-.sc-input:focus { outline: none; border-color: var(--sc-teal); box-shadow: 0 0 0 3px rgba(31,122,120,0.15); }
-.sc-input::placeholder { color: var(--sc-neutral-3); }
-
-.sc-label {
-  display: block;
-  font-weight: 600;
-  font-size: 0.85rem;
-  margin-bottom: var(--sc-space-xs);
-  color: var(--sc-ink);
-}
-```
-
-### Footer
-
-```css
-.sc-footer {
-  background: var(--sc-ink);
-  color: var(--sc-neutral-2);
-  padding: var(--sc-space-2xl) var(--sc-space-xl);
-  font-size: 0.85rem;
-}
-.sc-footer a { color: var(--sc-gold); text-decoration: none; }
-.sc-footer a:hover { text-decoration: underline; }
-.sc-footer-copyright { margin-top: var(--sc-space-lg); color: var(--sc-neutral-3); font-size: 0.75rem; }
-/* Logo in footer: use horizontal SVG with color: var(--sc-neutral-2) and opacity: 0.6 */
-```
+Key patterns baked into the components: navbar uses knockout-white logo on teal; sidenav and footer sit on Ink with Gold active/link accents; cards get a 3px teal top border; stat values use the 200 ExtraLight display weight.
 
 ## Dark Mode
 
-Apply via `[data-theme="dark"]` or `@media (prefers-color-scheme: dark)`.
-
-```css
-[data-theme="dark"] {
-  --sc-bg: var(--sc-ink);
-  --sc-text: var(--sc-paper);
-  --sc-text-muted: var(--sc-neutral-2);
-  --sc-border: var(--sc-neutral-5);
-  --sc-border-light: var(--sc-neutral-4);
-}
-
-[data-theme="dark"] .sc-card,
-[data-theme="dark"] .sc-stat-card,
-[data-theme="dark"] .sc-input {
-  background: var(--sc-neutral-5);
-}
-
-[data-theme="dark"] .sc-table th {
-  background: var(--sc-teal-dark);
-}
-
-[data-theme="dark"] .sc-navbar {
-  background: var(--sc-teal-darkest);
-}
-```
+Apply via `[data-theme="dark"]` or `@media (prefers-color-scheme: dark)` -- the override block is in `references/components.md`. Backgrounds swap to Ink/neutral-5, never blue/purple.
 
 On Ink backgrounds, use Gold (#F0BE65, 9.88:1) or Green (#9EB277, 7.32:1) for high-contrast text. Teal, Orange, and Lilac are only AA-large on dark -- use for decorative accents, not body text.
-
-## Responsive Breakpoints
-
-```css
-/* Mobile first */
---sc-bp-sm: 576px;   /* Small devices */
---sc-bp-md: 768px;   /* Tablets */
---sc-bp-lg: 1024px;  /* Desktops */
---sc-bp-xl: 1280px;  /* Large screens */
-
-@media (max-width: 768px) {
-  .sc-navbar { flex-direction: column; gap: var(--sc-space-sm); }
-  .sc-sidenav { width: 100%; min-height: auto; }
-  .sc-stat-value { font-size: 2rem; }
-  h1 { font-size: 1.75rem; }
-}
-```
 
 ## Animation Guidelines
 
@@ -425,16 +167,6 @@ Follow the spectrocloud-brand animation principles:
 - **Folding motifs**: Use subtle `transform: rotateY()` or skew effects to suggest origami folds -- keep it tactile and gentle, never bouncy or playful
 - **No character-by-character text animation** -- fade or slide entire blocks
 - **Product demos**: Keep the UI feature front and center, minimize surrounding motion
-
-```css
-.sc-fade-in {
-  animation: scFadeIn 0.3s ease-out;
-}
-@keyframes scFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-```
 
 ## Accessibility
 
@@ -447,6 +179,10 @@ WCAG contrast ratios from the brand guide (see spectrocloud-brand for full grid)
 Rules:
 - Use `--sc-teal-darkest` or `--sc-ink` for body text on light backgrounds
 - Use `--sc-gold` or `--sc-green` for body text on dark backgrounds
-- Interactive elements need visible `:focus` styles (the `box-shadow` on `.sc-input:focus` is a pattern to follow)
+- Interactive elements need visible `:focus` styles (the `box-shadow` on `.sc-input:focus` in components.md is the pattern to follow)
 - Minimum touch target: 44x44px for mobile
 - Always provide `alt` text on logo images
+
+## Files
+
+- `references/components.md` -- full `sc-*` component CSS/HTML library
