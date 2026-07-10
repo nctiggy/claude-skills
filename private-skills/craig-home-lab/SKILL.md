@@ -2,12 +2,13 @@
 name: craig-home-lab
 description: >-
   Craig's private home-lab map and the lab-adapter implementation that plugs into the
-  spectrocloud-poc-docs live-test tier (T2). Covers the Proxmox cluster (pve1-3), MaaS,
-  the CanvOS build host, AMT power control, network/VLAN layout, and 1Password service-account
-  credential paths. Use when running POC doc test suites against the lab, creating/destroying
-  ephemeral lab VMs, cleaning up poctest- Palette resources, or when any task needs lab
-  addresses, credentials paths, or power control. PRIVATE - lives in private-skills/, is never
-  uploaded by CI, and must never be copied into a shareable skill.
+  spectrocloud-poc-docs live-test tier (T2). Covers the Proxmox cluster (pve1-3, incl. the
+  RTX A2000 GPU passthrough on pve3), MaaS, the CanvOS build host, AMT power control,
+  network/VLAN layout, and 1Password service-account credential paths. Use when running POC
+  doc test suites against the lab, creating/destroying ephemeral lab VMs (incl. GPU VMs),
+  cleaning up poctest- Palette resources, or when any task needs lab addresses, credentials
+  paths, or power control. PRIVATE - lives in private-skills/, is never uploaded by CI, and
+  must never be copied into a shareable skill.
 ---
 
 # Craig's Home Lab — Map + POC-Test Lab Adapter
@@ -33,7 +34,9 @@ blocks them from ever appearing in customer-facing output (feed it
 5. **AMT power ops only against nodes in the MaaS inventory** (node11–13 MS-01s) —
    see `references/amt-power.md`. Never probe other hosts on 16993.
 6. **Proxmox is pve1/2/3 at 172.18.0.70/.71/.72** — the old `172.18.0.4` single-node
-   address is STALE; never use it.
+   address is STALE; never use it. pve3 (.72) has an **NVIDIA RTX A2000** for PCIe
+   passthrough — GPU VMs must be pinned there (`LAB_PVE_HOST=172.18.0.72`); see
+   `references/proxmox-vms.md`.
 
 ## Lab adapter (spectrocloud-poc-docs T2)
 
@@ -50,9 +53,12 @@ python3 <poc-docs-skill>/scripts/run_doc_tests.py \
   `env` emits `PALETTE_API_KEY` (via op) + `PROJECT_UID` (from `LAB_PROJECT_UID`).
 - `scripts/providers/existing-host.sh` — no provisioning; maps suite roles to hosts you
   name in `LAB_HOSTS` (`role=user@addr,...`). Teardown = Palette cleanup only.
-- `scripts/providers/proxmox-vm.sh` — creates ephemeral Ubuntu cloud-image VMs on pve1
-  (VMID 900–999, `poctest-` names, VLAN 19); teardown destroys exactly those VMs.
-  **`LAB_DRYRUN=1` prints every command instead of executing** — always dry-run first.
+- `scripts/providers/proxmox-vm.sh` — creates ephemeral Ubuntu cloud-image VMs on the
+  least-busy cluster node (pin with `LAB_PVE_HOST`, e.g. `172.18.0.72` for the pve3
+  GPU) — VMID 900–999, `poctest-` names, VLAN 19 static IPs, guest-agent readiness,
+  `LAB_SSH_JUMP` for exec. Teardown destroys exactly the recorded VMs (Palette cleanup
+  runs FIRST, while VMs are alive). **`LAB_DRYRUN=1` prints every command instead of
+  executing** — always dry-run first.
 - `scripts/palette-cleanup.sh` — deletes `poctest-*` clusters and edge hosts in
   `LAB_PROJECT_UID`; standalone or called by provider teardown.
 

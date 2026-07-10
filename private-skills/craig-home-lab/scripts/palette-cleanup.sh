@@ -50,20 +50,43 @@ del() {  # $1=kind label, $2=uid, $3=name, $4=url-path
 }
 
 # 1) Clusters named poctest-* (dashboard search scoped by the ProjectUid header).
+#    IMPORTANT ORDERING (learned 2026-07-10): delete the CLUSTER first and WAIT for it
+#    to drain — this must run while the node/VM is still ALIVE. If the VM is destroyed
+#    first, cluster deletion can't deprovision the node, the cluster wedges in
+#    "Deleting", and force-delete is then blocked for 15 min. So provider teardown
+#    calls this BEFORE destroying VMs, and we block here until the clusters are gone.
 clusters=$(curl -fsS -X POST "${hdr[@]}" \
   "$API/v1/dashboard/spectroclusters/search?limit=50" \
   -d '{"filter":{"conjunction":"and","filterGroups":[]},"sort":[]}' \
   | jq -r '.items[]? | select(.metadata.name | startswith("poctest-"))
            | "\(.metadata.uid) \(.metadata.name)"')
+cluster_uids=()
 if [ -n "$clusters" ]; then
   while read -r uid name; do
     del cluster "$uid" "$name" "/v1/spectroclusters/$uid"
+    cluster_uids+=("$uid")
   done <<< "$clusters"
 else
   echo "no poctest- clusters in project $PROJECT_UID"
 fi
 
-# 2) Edge hosts named poctest-* (delete after their clusters).
+# 1b) Wait for the clusters to actually disappear (graceful delete drains the live
+#     node) before touching edge hosts or destroying VMs. Up to ~12 min.
+if [ -z "$DRY" ] && [ ${#cluster_uids[@]} -gt 0 ]; then
+  for uid in "${cluster_uids[@]}"; do
+    for _ in $(seq 1 48); do
+      code=$(curl -s -o /dev/null -w '%{http_code}' "${hdr[@]}" "$API/v1/spectroclusters/$uid")
+      # 404 (gone) or 500 (search index dropped it) -> treat as deleted
+      case "$code" in 404|400) break ;; esac
+      state=$(curl -fsS "${hdr[@]}" "$API/v1/spectroclusters/$uid" 2>/dev/null | jq -r '.status.state // "gone"')
+      [ "$state" = "Deleted" ] || [ "$state" = "gone" ] && break
+      sleep 15
+    done
+    echo "cluster $uid drained/gone"
+  done
+fi
+
+# 2) Edge hosts named poctest-* (now free — their clusters are gone).
 edgehosts=$(curl -fsS "${hdr[@]}" "$API/v1/edgehosts?limit=50" \
   | jq -r '.items[]? | select(.metadata.name | startswith("poctest-"))
            | "\(.metadata.uid) \(.metadata.name)"')
