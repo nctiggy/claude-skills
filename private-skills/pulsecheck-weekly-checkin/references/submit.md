@@ -85,7 +85,11 @@ Interpreting the response:
 
 ## Unattended / cowork runs
 
-A cloud routine has no access to the local `~/.pulsecheck/pulse-auth.json`
-cookie — so in that mode, **do not submit at all**. Deliver the drafted
-Q1/Q2/Q3 answers plus the evidence appendix to the user and stop. Never store
-the session cookie inside a routine definition or its prompt.
+Respect the routine's chosen mode. In **draft** mode, don't write to
+PulseCheck — deliver the drafted Q1/Q2/Q3 answers plus the evidence appendix
+and stop. In **submit** mode, POST with `intent=submit` — but only if a
+session cookie is available at run time. A pure cloud routine has no access to
+the local `~/.pulsecheck/pulse-auth.json` cookie, so if none is present, fall
+back to delivering the finished answers for one-step submission rather than
+failing. Never store the session cookie inside a routine definition or its
+prompt.

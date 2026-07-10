@@ -96,12 +96,15 @@ unless the user explicitly instructs it in this conversation.
 
 ## Recurring use (Claude cowork)
 
-When running as a scheduled cowork routine: draft-only, always. Deliver the
-draft plus evidence appendix to the user for review; do not save to
-PulseCheck, send email, or post anywhere without approval. A cloud routine
-won't have the local PulseCheck session cookie, so submission isn't possible
-there anyway. Setup instructions and a ready-to-use routine prompt are in
-`cowork-routine.md`.
+The routine runs in whichever mode the user chose when they created it —
+**draft** (recommended default) or **submit** — and never the other. In draft
+mode, deliver the draft plus evidence appendix and save nothing. In submit
+mode, save the check-in with `intent=submit` per `references/submit.md`, but
+only if a session cookie is available at run time; if it isn't (e.g. a pure
+cloud routine with no cookie), fall back to delivering the finished answers and
+ask the user to submit. Either way: read-only sources, always include the
+evidence appendix, and never send email or post anywhere else. Setup and both
+ready-to-use routine prompts (draft and submit) are in `cowork-routine.md`.
 
 ## Using this outside Claude
 
