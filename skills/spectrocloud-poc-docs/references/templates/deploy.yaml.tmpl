@@ -1,0 +1,10 @@
+# deploy.yaml — deploy-provider config for this docs-site.
+# See references/publishing.md in the spectrocloud-poc-docs skill.
+provider: cf-pages          # matches scripts/deploy/<provider>.sh
+project: {{PROJECT}}        # Cloudflare Pages project name (or self-hosted slug)
+site_title: "{{SITE_NAME}}"
+
+# Access gating: who may read the published site.
+allowed_domains:
+  - {{CUSTOMER_DOMAIN}}
+  - spectrocloud.com

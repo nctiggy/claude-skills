@@ -67,8 +67,15 @@ html, body { margin: 0; padding: 0; width: 1280px; }
 
 Font: Plus Jakarta Sans (Google Fonts). Slides use larger sizes than exec-docs since they are projected.
 
+**Load the font via `<link>` tags in `<head>` - NOT `@import` inside `<style>`.** `@import` causes font loading failures in Puppeteer rendering (decks silently fall back to Trebuchet MS).
+
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+```
+
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap');
 body { font-family: 'Plus Jakarta Sans', 'Trebuchet MS', sans-serif; }
 ```
 

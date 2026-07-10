@@ -1,0 +1,9 @@
+suite: runner-fail
+pages:
+  - docs/fail.md
+adapter_requirements:
+  hosts: [node]
+  env: [PALETTE_API_KEY]
+vars: {}
+required_vars: []
+teardown: always

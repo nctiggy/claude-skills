@@ -91,6 +91,13 @@ def validate_skill(skill_path: Path) -> list[str]:
     errors.extend(validate_name(frontmatter.get("name", "")))
     errors.extend(validate_description(frontmatter.get("description", "")))
 
+    # Name must match the directory name (upload uses the dir, triggers use the name)
+    name = frontmatter.get("name", "")
+    if name and name != skill_path.name:
+        errors.append(
+            f"Name '{name}' does not match directory name '{skill_path.name}'"
+        )
+
     # Check line count
     lines = content.count("\n") + 1
     if lines > 500:

@@ -1,9 +1,9 @@
 ---
 name: spectrocloud-prompts
-description: Generate context-efficient prompts for SpectroCloud tasks. Skills are global - agents must READ them. Learnings stay local.
+description: Generate context-efficient prompts for delegating Spectro Cloud Palette tasks to agents or fresh sessions. Use when writing a prompt that must force the agent to READ the spectrocloud-* skills and record learnings locally instead of bloating context.
 ---
 
-# SpectroCloud Prompt Generator
+# Spectro Cloud Prompt Generator
 
 Generate prompts that **preserve context** and **force skill usage**.
 

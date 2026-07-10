@@ -1,6 +1,6 @@
 ---
 name: docs-site-generator
-description: Generate branded documentation sites with MkDocs Material or Docusaurus. Produces structured Markdown files, navigation config, and brand theming for customer-facing docs portals, project documentation, and knowledge bases.
+description: Generate branded documentation sites with MkDocs Material or Docusaurus. Produces structured Markdown files, navigation config, and brand theming. Use when asked for a docs site, docs portal, knowledge base, or runbook site for a project or customer. For prospect-facing POC guide sites use spectrocloud-poc-docs (it composes this skill); for architecture diagrams inside a site use architecture-diagrams.
 ---
 
 # Documentation Site Generator
@@ -15,9 +15,11 @@ Generate complete documentation sites as a directory of Markdown files with navi
 - API reference sites with guides
 - Operations and troubleshooting documentation
 
+> **Publishing a prospect-facing POC guide site?** Use the `spectrocloud-poc-docs` skill for the full build→test→publish lifecycle (it composes this skill for theming) — including the Cloudflare Access gating step that must cover the `*.project.pages.dev` preview-URL wildcard, not just the apex hostname.
+
 ## Brand Integration
 
-READ the `spectrocloud-brand` skill for colors, typography, and design principles before generating any themed site. Use the CSS custom properties from `references/colors.md` for all color values.
+READ the `spectrocloud-brand` skill for colors, typography, and design principles before generating any themed site. Use the CSS custom properties from `spectrocloud-brand/references/colors.md` for all color values.
 
 ### CSS Custom Properties (from spectrocloud-brand)
 
@@ -190,7 +192,7 @@ nav:
   --md-default-bg-color: #F7F1ED;
   --md-default-fg-color: #012121;
   --md-typeset-a-color: #1F7A78;
-  --md-code-bg-color: #f5f0eb;
+  --md-code-bg-color: #E0DCD7;    /* brand neutral-1 */
 }
 
 /* Admonition colors */
@@ -235,11 +237,11 @@ nav:
   color: #F7F1ED;
 }
 
-/* Dark mode */
+/* Dark mode — brand Ink/neutrals only. NEVER blue/purple (old brand). */
 [data-md-color-scheme="slate"] {
-  --md-default-bg-color: #1a1a2e;
-  --md-default-fg-color: #e0e0e0;
-  --md-code-bg-color: #2d2d44;
+  --md-default-bg-color: #012121;  /* Ink */
+  --md-default-fg-color: #E0DCD7;  /* neutral-1 */
+  --md-code-bg-color: #1E3332;     /* dark neutral */
 }
 ```
 
@@ -342,16 +344,16 @@ Group alternatives (OS, language, tool) in tabs:
     ```
 ```
 
-### Mermaid Diagrams
+### Diagrams
 
-Use mermaid for architecture and flow diagrams:
+Use Mermaid for simple behavioural diagrams (sequence, state, flow). For structural/architecture diagrams (context, container, component), use the `architecture-diagrams` skill instead — it uses D2 and adds the `d2` plugin block to this skill's `mkdocs.yml` (keep the shared `pymdownx.superfences` mermaid fence from the config above; just merge in the d2 plugin).
 
 ````markdown
 ```mermaid
-graph LR
-    A[User] --> B[Load Balancer]
-    B --> C[App Server]
-    C --> D[Database]
+sequenceDiagram
+    User->>API: Request
+    API->>DB: Query
+    DB-->>User: Response
 ```
 ````
 

@@ -274,7 +274,7 @@ terraform {
   required_providers {
     spectrocloud = {
       source  = "spectrocloud/spectrocloud"
-      version = ">= 0.22.0"
+      version = ">= 0.26.0"  # 2-node (two_node_role) needs 0.26+
     }
   }
 }
