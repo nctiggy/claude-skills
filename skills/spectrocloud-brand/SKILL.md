@@ -121,8 +121,9 @@ SVG logo files are in `assets/`. Key variants:
 
 | File | Use |
 |------|-----|
-| `spectrocloud-logo-horizontal.svg` | Full-color for light backgrounds. Strata mark in brand teals, wordmark in `currentcolor` |
-| `spectrocloud-logo-horizontal-knockout-white.svg` | All-white for dark backgrounds. Official knockout from Brand Drive |
+| `spectrocloud-logo-horizontal-currentcolor.svg` | Light backgrounds. `fill="currentcolor"`, viewBox `0 0 501 192`, compound paths — safe for Puppeteer/PDF |
+| `spectrocloud-logo-horizontal-knockout-white.svg` | All-white for dark backgrounds. Official knockout from Brand Drive, viewBox `0 0 501 192` |
+| `spectrocloud-logo-horizontal.svg` | Old website SVG (viewBox `0 0 148 57`), full-color Strata. **Web use only — NEVER for Puppeteer/PDF** (separate paths per letter part; counters fill solid) |
 
 ### Logo Rules
 

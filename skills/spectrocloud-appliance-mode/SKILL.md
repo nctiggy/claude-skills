@@ -47,27 +47,9 @@ earthly bootstrap
 
 **Query CanvOS for supported versions before building.** Default to n-1 minor for stability.
 
-```bash
-# Get latest CanvOS tag
-CANVOS_TAG=$(gh api repos/spectrocloud/CanvOS/tags --jq '.[0].name')
-echo "Latest CanvOS: $CANVOS_TAG"
+Run the "Get Supported K8s Versions from CanvOS" query from the `spectrocloud-common` skill (fetches `k8s_version.json` from the latest CanvOS tag and computes the n-1 minor for your distribution — k3s, rke2, kubeadm, kubeadm-fips).
 
-# Fetch supported K8s versions
-curl -s "https://raw.githubusercontent.com/spectrocloud/CanvOS/$CANVOS_TAG/k8s_version.json" > k8s_versions.json
-
-# Get n-1 minor for chosen distribution (default: k3s)
-DISTRO="k3s"  # or: rke2, kubeadm, kubeadm-fips
-K8S_VERSION=$(jq -r --arg d "$DISTRO" '.[$d] |
-  sort_by(split(".") | map(tonumber)) | reverse |
-  group_by(split(".")[0:2] | join(".")) |
-  sort_by(.[0] | split(".") | map(tonumber)) | reverse | .[1][0] // .[0][0]' k8s_versions.json)
-echo "Recommended $DISTRO version: $K8S_VERSION"
-
-# Show all available for reference
-jq -r --arg d "$DISTRO" '.[$d] | sort_by(split(".") | map(tonumber)) | reverse | .[0:5] | join(", ")' k8s_versions.json
-```
-
-**Use this K8S_VERSION in Step 1's .arg file.**
+**Use the resulting K8S_VERSION in Step 1's .arg file.**
 
 ### Step 1: Clone and Configure
 
@@ -413,14 +395,7 @@ See `spectrocloud-cluster-profiles` skill → "BYOOS Pack Values: Agent vs Edge 
 
 ## BYOOS Pack Version
 
-**Always use the latest BYOOS pack version** when creating cluster profiles - never hardcode it.
-
-Query the latest:
-```bash
-curl -s "https://api.spectrocloud.com/v1/packs?filters=metadata.name=edge-native-byoi&limit=50" \
-  -H "ApiKey: $PALETTE_API_KEY" | jq -r '[.items[] | select(.spec.registryUid == "5eecc89d0b150045ae661cef")] |
-  sort_by(.spec.version | split(".") | map(tonumber)) | reverse | .[0].spec.version'
-```
+**Always use the latest BYOOS pack version** when creating cluster profiles - never hardcode it. Query it with the "Get Latest BYOOS Version" query in the `spectrocloud-common` skill.
 
 **Registry note**: BYOOS exists in two registries. Use **Public Repo** (type=`spectro`) for Terraform/API:
 - Public Repo UID: `5eecc89d0b150045ae661cef`

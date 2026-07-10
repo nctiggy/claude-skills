@@ -76,6 +76,7 @@ else
 			python3 $(SCRIPTS_DIR)/quick_validate.py "$$skill_dir"; \
 		fi \
 	done
+	@python3 $(SCRIPTS_DIR)/secret_scan.py $(SKILLS_DIR)
 endif
 
 list:
