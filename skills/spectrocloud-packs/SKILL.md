@@ -88,7 +88,7 @@ charts:
 - **HWE kernel**: Ubuntu 22.04 HWE kernel (6.8.x) has no pre-built DRBD modules - must disable loader
 - **No DRBD = no replication**: When DRBD disabled, use `layerList: "STORAGE"` only
 - **File pool sizing**: Uses root partition space - 100GB VM disk leaves only ~2.5GB after OS install
-- On MS-01 nodes: use the 1-2TB secondary drive, not the 500GB OS drive
+- On nodes with a separate data disk: put the storage pool on the data disk, not the OS drive
 
 **Post-deploy verification:**
 ```bash

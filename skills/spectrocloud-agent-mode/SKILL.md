@@ -10,8 +10,10 @@ Agent Mode lets you bring your own host and OS to be managed by Palette. The Pal
 ## Key Constraints
 
 - **Node counts**: 1-node or 3+ nodes only. **No 2-node deployments** in agent mode.
-- **BYOOS pack**: Must use the "NA" preset (not a custom provider image)
+- **BYOOS pack**: Must use the **Agent Mode** preset, which sets `system.uri: "NA"` (not a custom provider image)
 - **Architecture**: AMD64 and ARM64 supported
+
+For API auth and project UID lookup, use the `spectrocloud-common` skill.
 
 ## Prerequisites
 

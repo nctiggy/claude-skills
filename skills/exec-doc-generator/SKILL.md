@@ -108,6 +108,8 @@ Only use these class names — they are defined in `references/components.md`:
 
 Track cards MUST use a dot color class (`dot-navy`, `dot-accent`, or `dot-teal`) on the `.track-card-body` div. Without it, bullets have no visible styling.
 
+**Icon enforcement:** Track card headers, stack strip items, and verdict cards MUST use **emoji characters** (e.g., 🏭 🤖 ☸️ 🐧 💾 🔒 📊) inside `.icon-wrap` or `.stack-icon` divs. Do NOT substitute text abbreviations ("K8s", "OS", "PX"), single letters ("I", "A"), or CSS-styled spans. Emojis render cross-platform in Puppeteer and provide visual differentiation that text cannot.
+
 ### Page Footer Pattern
 
 Use the inline SVG from `assets/spectrocloud-logo-horizontal-currentcolor.svg` (NOT the old 148x57 website version). This SVG uses `fill="currentcolor"` with `fill-rule="evenodd"` and has **compound paths** that correctly render letter counters (o, p, e, d holes) in Puppeteer. Set `color: var(--ink)` and `style="height: 14px; width: auto;"` on the SVG element.

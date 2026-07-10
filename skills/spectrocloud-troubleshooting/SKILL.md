@@ -7,6 +7,8 @@ description: Debug Spectro Cloud Palette clusters using event streams, log bundl
 
 Debug cluster provisioning, upgrades, and operational issues using Palette's event streams and logs.
 
+For the `$PALETTE_API_KEY` / `$PROJECT_UID` env vars used below, see the `spectrocloud-common` skill (auth + project UID lookup).
+
 ## Key Concepts
 
 - **Event Stream**: Live cluster events showing orchestration progress and errors

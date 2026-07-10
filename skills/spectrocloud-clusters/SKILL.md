@@ -1,6 +1,6 @@
 ---
 name: spectrocloud-clusters
-description: Create and manage Spectro Cloud Palette Edge clusters. Covers edge-native deployments including agent mode, appliance mode, and 2-node HA. Both API and Terraform.
+description: Create and manage Spectro Cloud Palette Edge clusters via API or Terraform - cluster create/delete, machine pools, kubeconfig, and profile updates. Use for the cluster lifecycle itself; for host setup and OS/image build steps use spectrocloud-agent-mode or spectrocloud-appliance-mode.
 ---
 
 # Spectro Cloud Edge Clusters
@@ -35,8 +35,9 @@ Deploy and manage Kubernetes clusters on edge infrastructure using Palette.
 ## API: Create Cluster
 
 ```bash
-curl -s -X POST "https://api.spectrocloud.com/v1/spectroclusters/edge-native?ProjectUid=$PROJECT_UID" \
+curl -s -X POST "https://api.spectrocloud.com/v1/spectroclusters/edge-native" \
   -H "ApiKey: $PALETTE_API_KEY" \
+  -H "ProjectUid: $PROJECT_UID" \
   -H "Content-Type: application/json" \
   -d '{
     "metadata": {"name": "my-cluster"},

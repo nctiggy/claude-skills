@@ -176,6 +176,8 @@ For confidential docs: `© [Year] Spectro Cloud® Confidential. All rights reser
 
 SVG icons from the brand guide are in `assets/icons/`. These are the official brand icons -- use them instead of emojis or generic icon sets in branded materials.
 
+**Documented exception:** compact Puppeteer-rendered PDF layouts (the `exec-doc-generator` track cards, stack strips, and verdict cards) use emoji glyphs for small in-card icons, because the 32x32 brand SVGs don't scale down legibly at those sizes and text abbreviations render inconsistently. That exception is deliberate and scoped to those components -- everywhere else, brand SVG icons win.
+
 | Icon | File | Use |
 |------|------|-----|
 | Diamond | `Diamond.svg` | Simplicity, elegance, the fold |
@@ -186,7 +188,6 @@ SVG icons from the brand guide are in `assets/icons/`. These are the official br
 | CirclesFour | `CirclesFour.svg` | Multi-environment, diversity |
 | GitFork | `GitFork.svg` | Git ops, branching, development |
 | Envelope | `Envelope.svg` | Communication, email |
-
 | Shuffle | `Shuffle.svg` | Versatility, interconnection |
 | SealCheck | `SealCheck.svg` | Trusted platform, certification |
 | Sparkle | `Sparkle.svg` | Innovation, new features |
